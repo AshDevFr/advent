@@ -17,6 +17,12 @@ thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 base64 = "0.22"
+age = { version = "0.12", default-features = false }
+
+# age draws randomness through getrandom 0.2, which only builds for
+# wasm32-unknown-unknown with its browser (js) backend enabled.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 serde = { workspace = true }
