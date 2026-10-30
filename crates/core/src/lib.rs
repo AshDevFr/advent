@@ -4,6 +4,7 @@
 //! This crate must build for `wasm32-unknown-unknown`, so it does no I/O:
 //! callers pass bytes in and get bytes out.
 
+pub mod format;
 mod guessable;
 mod normalize;
 pub mod primitives;
