@@ -6,8 +6,10 @@
 
 pub mod format;
 mod guessable;
+pub mod model;
 mod normalize;
 pub mod primitives;
+pub mod schedule;
 pub mod wrap;
 
 pub use guessable::{GuessableReason, guessable};

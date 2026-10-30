@@ -18,6 +18,12 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 base64 = "0.22"
 age = { version = "0.12", default-features = false }
+# Same YAML crate figment uses in the CLI, so the workspace carries one parser.
+serde_yaml = "0.9"
+# No default features: chrono's clock reads system time, which core never
+# does (callers pass `now` in) and which does not exist on wasm32-unknown-unknown.
+chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
+chrono-tz = { version = "0.10", features = ["serde"] }
 
 # age draws randomness through getrandom 0.2, which only builds for
 # wasm32-unknown-unknown with its browser (js) backend enabled.
