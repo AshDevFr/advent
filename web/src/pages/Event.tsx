@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { api, type EventInfo, NotFound, themeCssUrl } from "@/api";
+import { CertificateSection } from "@/certificate/Certificate";
 import { Countdown } from "@/components/Countdown";
 import { DoorGrid, type DoorState } from "@/components/DoorGrid";
 import { KeyStrip } from "@/components/KeyStrip";
@@ -53,6 +54,7 @@ export function EventPage({ id }: { id: string }) {
       )}
       <KeyStrip days={event.days} words={progress.words} />
       <DoorGrid days={event.days} stateOf={stateOf} onOpen={setOpenDay} />
+      <CertificateSection event={event} />
       <Progress event={id} />
       {openDay !== null && (
         <DoorPanel event={id} day={openDay} onClose={() => setOpenDay(null)} />
