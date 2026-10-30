@@ -1,6 +1,87 @@
 {
   "format": 1,
-  "normalize": [],
+  "normalize": [
+    {
+      "input": "Paris",
+      "normalized": "paris",
+      "note": "case"
+    },
+    {
+      "input": "  Café-Crème! ",
+      "normalized": "cafecreme",
+      "note": "accents, punctuation, spaces"
+    },
+    {
+      "input": "Ça va?",
+      "normalized": "cava",
+      "note": "cedilla and punctuation"
+    },
+    {
+      "input": "L'Été 2014",
+      "normalized": "lete2014",
+      "note": "apostrophe, accent, digits"
+    },
+    {
+      "input": "Ångström",
+      "normalized": "angstrom",
+      "note": "ring above and umlaut"
+    },
+    {
+      "input": "naïve résumé",
+      "normalized": "naiveresume",
+      "note": "diaeresis and acute, inner space"
+    },
+    {
+      "input": "Ñandú",
+      "normalized": "nandu",
+      "note": "tilde"
+    },
+    {
+      "input": "é",
+      "normalized": "e",
+      "note": "already-decomposed combining acute"
+    },
+    {
+      "input": "Hello,   World!!",
+      "normalized": "helloworld",
+      "note": "repeated spaces and punctuation"
+    },
+    {
+      "input": "İstanbul",
+      "normalized": "istanbul",
+      "note": "dotted capital I decomposes to I plus combining dot"
+    },
+    {
+      "input": "K",
+      "normalized": "k",
+      "note": "Kelvin sign canonically decomposes to ASCII K"
+    },
+    {
+      "input": "STRAßE",
+      "normalized": "strae",
+      "note": "sharp s has no canonical decomposition and is dropped"
+    },
+    {
+      "input": "Ærøskøbing",
+      "normalized": "rskbing",
+      "note": "ae ligature and slashed o have no decomposition and are dropped"
+    },
+    {
+      "input": "東京",
+      "normalized": "",
+      "note": "non-Latin input normalizes to empty"
+    },
+    {
+      "input": "１２３",
+      "normalized": "",
+      "note": "fullwidth digits are compatibility forms, untouched by NFD, dropped"
+    },
+    {
+      "input": "",
+      "normalized": "",
+      "note": "empty input"
+    }
+  ],
   "word": [],
   "bundle": [],
   "hint": [],

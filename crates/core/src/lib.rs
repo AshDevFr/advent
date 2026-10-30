@@ -4,6 +4,12 @@
 //! This crate must build for `wasm32-unknown-unknown`, so it does no I/O:
 //! callers pass bytes in and get bytes out.
 
+mod guessable;
+mod normalize;
+
+pub use guessable::{GuessableReason, guessable};
+pub use normalize::{is_normalized_word, normalize};
+
 /// Version of this crate, recorded in sealed files as `sealed_by` by callers.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 

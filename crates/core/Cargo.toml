@@ -8,3 +8,8 @@ description = "Normalization, sealing and release logic for advent; builds for w
 repository.workspace = true
 
 [dependencies]
+unicode-normalization = "0.1"
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
