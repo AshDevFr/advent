@@ -71,7 +71,7 @@ fn main() -> anyhow::Result<()> {
         Command::Keeper {
             command: KeeperCommand::Seal { event },
         } => commands::keeper::run(&event),
-        Command::Verify { .. } => commands::not_yet("verify"),
+        Command::Verify { event, release } => commands::verify::run(event.as_deref(), release),
     }
 }
 
