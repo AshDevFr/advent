@@ -6,13 +6,14 @@
 use std::path::Path;
 
 use advent_core::format::{self, Bundle, Encrypted, SCHEMA, SealedDay, SealedHint};
-use advent_core::primitives::{self, Key, WordLock};
+use advent_core::model::DayMeta;
+use advent_core::primitives::{self, WordLock};
 use advent_core::wrap::{self, x25519};
 use advent_core::{GuessableReason, guessable, is_normalized_word, normalize};
 use anyhow::{Context, bail, ensure};
 
 use crate::config::{find_repo_root, load_repo_config};
-use crate::day::{self, SEALED_FILE, SOURCE_FILE};
+use crate::day::{self, DayKeys, Plaintext, SEALED_FILE, SOURCE_FILE};
 use crate::{images, random};
 
 pub fn run(day_dir: &Path) -> anyhow::Result<()> {
@@ -22,8 +23,43 @@ pub fn run(day_dir: &Path) -> anyhow::Result<()> {
     let release = wrap::parse_recipients(&config.keys.release)?;
     let editors = wrap::parse_recipients(&config.keys.editors)?;
     let plain = day::load_plaintext(&day.path)?;
-    let meta = &plain.meta;
 
+    let output = seal_day(day.number, &plain, &release, &editors)?;
+    output.write(&day.path)?;
+
+    println!(
+        "Sealed day {}: {} answer lock(s), {} hint(s), {} image(s).",
+        day.number, output.locks, output.hints, output.images
+    );
+    println!("Commit {SEALED_FILE} and {SOURCE_FILE}; the plaintext stays ignored.");
+    Ok(())
+}
+
+/// The committed form of one day, ready to write.
+pub struct Sealed {
+    pub sealed_json: Vec<u8>,
+    pub source: Vec<u8>,
+    locks: usize,
+    hints: usize,
+    images: usize,
+}
+
+impl Sealed {
+    pub fn write(&self, day_path: &Path) -> anyhow::Result<()> {
+        day::write_atomic(&day_path.join(SEALED_FILE), &self.sealed_json)?;
+        day::write_atomic(&day_path.join(SOURCE_FILE), &self.source)
+    }
+}
+
+/// Seal a day's plaintext with fresh keys. Used by `seal`, and by
+/// `reseal --all` with plaintext taken from the source copy.
+pub fn seal_day(
+    number: u32,
+    plain: &Plaintext,
+    release: &[x25519::Recipient],
+    editors: &[x25519::Recipient],
+) -> anyhow::Result<Sealed> {
+    let meta = &plain.meta;
     if !is_normalized_word(&meta.word) {
         bail!(
             "word {:?} must already be in normalized form: lowercase a-z and 0-9 only, \
@@ -52,9 +88,8 @@ pub fn run(day_dir: &Path) -> anyhow::Result<()> {
     let converted = images::convert(&plain.files, &plain.puzzle)?;
     if converted.total_bytes > images::DAY_IMAGE_BUDGET {
         eprintln!(
-            "warning: day {} has {:.1} MB of images after conversion (budget {:.1} MB); \
+            "warning: day {number} has {:.1} MB of images after conversion (budget {:.1} MB); \
              players on phones will wait",
-            day.number,
             converted.total_bytes as f64 / 1e6,
             images::DAY_IMAGE_BUDGET as f64 / 1e6
         );
@@ -66,66 +101,54 @@ pub fn run(day_dir: &Path) -> anyhow::Result<()> {
         markdown: converted.markdown,
         assets: converted.assets,
     };
-    let day_key: Key = random::bytes();
+    let keys = DayKeys {
+        day_key: random::bytes(),
+        hint_keys: meta.hints.iter().map(|_| random::bytes()).collect(),
+    };
     let bundle_iv = random::bytes();
-    let bundle_ct = primitives::seal_bundle(&day_key, bundle_iv, &serde_json::to_vec(&bundle)?);
+    let bundle_ct =
+        primitives::seal_bundle(&keys.day_key, bundle_iv, &serde_json::to_vec(&bundle)?);
 
     let word_locks = answers
         .iter()
         .map(|a| primitives::seal_word(a, &meta.word, random::bytes(), random::bytes()))
         .collect::<Result<Vec<_>, _>>()?;
 
-    let mut hint_keys = Vec::new();
     let mut hints = Vec::new();
-    for hint in &meta.hints {
-        let key: Key = random::bytes();
+    for (hint, key) in meta.hints.iter().zip(&keys.hint_keys) {
         let iv = random::bytes();
         hints.push(SealedHint {
             iv,
-            ct: primitives::seal_hint(&key, iv, hint),
-            key: wrap::wrap_key(&key, &release)?,
+            ct: primitives::seal_hint(key, iv, hint),
+            key: wrap::wrap_key(key, release)?,
         });
-        hint_keys.push(key);
     }
 
     let sealed = SealedDay {
         schema: SCHEMA,
         sealed_by: format!("advent {}", env!("CARGO_PKG_VERSION")),
-        day: day.number,
+        day: number,
         bundle: Encrypted {
             iv: bundle_iv,
             ct: bundle_ct,
         },
-        day_key: wrap::wrap_key(&day_key, &release)?,
+        day_key: wrap::wrap_key(&keys.day_key, release)?,
         word_locks,
         hints,
     };
     let sealed_json = serde_json::to_vec_pretty(&sealed)?;
-    let source = wrap::encrypt_to(&day::pack_source(&plain.files, &day_key)?, &editors)?;
+    let source = wrap::encrypt_to(&day::pack_source(&plain.files, &keys)?, editors)?;
 
-    round_trip(
-        &sealed_json,
-        &bundle,
-        &day_key,
-        &answers,
-        meta,
-        &hint_keys,
-        &release,
-    )
-    .context("round-trip check failed; nothing was written")?;
+    round_trip(&sealed_json, &bundle, &keys, &answers, meta)
+        .context("round-trip check failed; nothing was written")?;
 
-    day::write_atomic(&day.path.join(SEALED_FILE), &sealed_json)?;
-    day::write_atomic(&day.path.join(SOURCE_FILE), &source)?;
-
-    println!(
-        "Sealed day {}: {} answer lock(s), {} hint(s), {} image(s).",
-        day.number,
-        sealed.word_locks.len(),
-        sealed.hints.len(),
-        bundle.assets.len()
-    );
-    println!("Commit {SEALED_FILE} and {SOURCE_FILE}; the plaintext stays ignored.");
-    Ok(())
+    Ok(Sealed {
+        sealed_json,
+        source,
+        locks: sealed.word_locks.len(),
+        hints: sealed.hints.len(),
+        images: bundle.assets.len(),
+    })
 }
 
 fn warn_if_guessable(answer: &str) {
@@ -154,15 +177,13 @@ fn warn_if_guessable(answer: &str) {
 fn round_trip(
     sealed_json: &[u8],
     bundle: &Bundle,
-    day_key: &Key,
+    keys: &DayKeys,
     answers: &[&String],
-    meta: &advent_core::model::DayMeta,
-    hint_keys: &[Key],
-    release: &[x25519::Recipient],
+    meta: &DayMeta,
 ) -> anyhow::Result<()> {
     let sealed = format::read_sealed_day(sealed_json)?;
     let opened: Bundle = serde_json::from_slice(&primitives::open_bundle(
-        day_key,
+        &keys.day_key,
         sealed.bundle.iv,
         &sealed.bundle.ct,
     )?)?;
@@ -177,14 +198,15 @@ fn round_trip(
         });
         ensure!(opens, "answer {answer:?} does not open the word");
     }
-    for ((hint, key), sealed_hint) in meta.hints.iter().zip(hint_keys).zip(&sealed.hints) {
+    ensure!(
+        sealed.hints.len() == meta.hints.len(),
+        "hint count changed while sealing"
+    );
+    for ((hint, key), sealed_hint) in meta.hints.iter().zip(&keys.hint_keys).zip(&sealed.hints) {
         let text = primitives::open_hint(key, sealed_hint.iv, &sealed_hint.ct)?;
         ensure!(&text == hint, "a hint does not decrypt to what was sealed");
         ensure!(!sealed_hint.key.is_empty(), "a hint key was not wrapped");
     }
-    ensure!(
-        !release.is_empty() && !sealed.day_key.is_empty(),
-        "day key was not wrapped"
-    );
+    ensure!(!sealed.day_key.is_empty(), "day key was not wrapped");
     Ok(())
 }

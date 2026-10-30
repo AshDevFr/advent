@@ -66,8 +66,8 @@ fn main() -> anyhow::Result<()> {
     match Cli::parse().command {
         Command::Init { dir, event } => commands::init::run(&dir, event.as_deref()),
         Command::Seal { day_dir } => commands::seal::run(&day_dir),
-        Command::UnsealSource { .. } => commands::not_yet("unseal-source"),
-        Command::Reseal { .. } => commands::not_yet("reseal"),
+        Command::UnsealSource { day_dir, force } => commands::unseal_source::run(&day_dir, force),
+        Command::Reseal { event, all } => commands::reseal::run(event.as_deref(), all),
         Command::Keeper {
             command: KeeperCommand::Seal { .. },
         } => commands::not_yet("keeper seal"),

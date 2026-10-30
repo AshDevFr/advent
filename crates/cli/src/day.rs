@@ -17,8 +17,9 @@ const META_FILE: &str = "meta.yaml";
 const PUZZLE_FILE: &str = "puzzle.md";
 const EVENT_FILE: &str = "event.yaml";
 
-/// Archive entry holding the day key, next to `files/...` entries.
+/// Archive entries holding the day key and hint keys, next to `files/...`.
 const DAY_KEY_ENTRY: &str = "day_key";
+const HINT_KEY_PREFIX: &str = "hint_key/";
 const FILES_PREFIX: &str = "files/";
 
 pub struct DayDir {
@@ -78,22 +79,29 @@ pub struct Plaintext {
 pub fn load_plaintext(dir: &Path) -> anyhow::Result<Plaintext> {
     let mut files = BTreeMap::new();
     collect(dir, dir, &mut files)?;
-    let meta_text = files
-        .get(META_FILE)
-        .with_context(|| format!("no {META_FILE} in {}", dir.display()))?;
-    let meta = DayMeta::from_yaml(std::str::from_utf8(meta_text)?)
-        .with_context(|| format!("in {}", dir.join(META_FILE).display()))?;
-    let puzzle = String::from_utf8(
-        files
-            .get(PUZZLE_FILE)
-            .with_context(|| format!("no {PUZZLE_FILE} in {}", dir.display()))?
-            .clone(),
-    )?;
-    Ok(Plaintext {
-        meta,
-        puzzle,
-        files,
-    })
+    Plaintext::from_files(files).with_context(|| format!("in {}", dir.display()))
+}
+
+impl Plaintext {
+    /// Build from a day's files, whether read from disk or from `source.age`.
+    pub fn from_files(files: BTreeMap<String, Vec<u8>>) -> anyhow::Result<Plaintext> {
+        let meta_text = files
+            .get(META_FILE)
+            .with_context(|| format!("no {META_FILE}"))?;
+        let meta = DayMeta::from_yaml(std::str::from_utf8(meta_text)?)
+            .with_context(|| format!("in {META_FILE}"))?;
+        let puzzle = String::from_utf8(
+            files
+                .get(PUZZLE_FILE)
+                .with_context(|| format!("no {PUZZLE_FILE}"))?
+                .clone(),
+        )?;
+        Ok(Plaintext {
+            meta,
+            puzzle,
+            files,
+        })
+    }
 }
 
 fn collect(root: &Path, dir: &Path, files: &mut BTreeMap<String, Vec<u8>>) -> anyhow::Result<()> {
@@ -113,9 +121,17 @@ fn collect(root: &Path, dir: &Path, files: &mut BTreeMap<String, Vec<u8>>) -> an
     Ok(())
 }
 
-/// Tar the plaintext files and the day key together. Original files are
+/// The keys a day was sealed with, kept in its source copy so an editor can
+/// re-wrap them for new release recipients and verify the day without the
+/// release key.
+pub struct DayKeys {
+    pub day_key: Key,
+    pub hint_keys: Vec<Key>,
+}
+
+/// Tar the plaintext files and the day's keys together. Original files are
 /// kept as they were (not the converted WebP), so restoring is exact.
-pub fn pack_source(files: &BTreeMap<String, Vec<u8>>, day_key: &Key) -> anyhow::Result<Vec<u8>> {
+pub fn pack_source(files: &BTreeMap<String, Vec<u8>>, keys: &DayKeys) -> anyhow::Result<Vec<u8>> {
     let mut builder = tar::Builder::new(Vec::new());
     let mut append = |name: &str, data: &[u8]| -> anyhow::Result<()> {
         let mut header = tar::Header::new_gnu();
@@ -125,22 +141,29 @@ pub fn pack_source(files: &BTreeMap<String, Vec<u8>>, day_key: &Key) -> anyhow::
         builder.append_data(&mut header, name, data)?;
         Ok(())
     };
-    append(DAY_KEY_ENTRY, day_key)?;
+    append(DAY_KEY_ENTRY, &keys.day_key)?;
+    for (i, key) in keys.hint_keys.iter().enumerate() {
+        append(&format!("{HINT_KEY_PREFIX}{i}"), key)?;
+    }
     for (name, data) in files {
         append(&format!("{FILES_PREFIX}{name}"), data)?;
     }
     Ok(builder.into_inner()?)
 }
 
-#[allow(dead_code, reason = "read by unseal-source, reseal and verify")]
 pub struct Source {
-    pub day_key: Key,
+    pub keys: DayKeys,
     pub files: BTreeMap<String, Vec<u8>>,
 }
 
-#[allow(dead_code, reason = "used by unseal-source, reseal and verify")]
+fn key_from(name: &str, data: Vec<u8>) -> anyhow::Result<Key> {
+    let len = data.len();
+    <[u8; KEY_LEN]>::try_from(data).map_err(|_| anyhow::anyhow!("{name} in source has {len} bytes"))
+}
+
 pub fn unpack_source(archive: &[u8]) -> anyhow::Result<Source> {
     let mut day_key = None;
+    let mut hint_keys = BTreeMap::new();
     let mut files = BTreeMap::new();
     for entry in tar::Archive::new(archive).entries()? {
         let mut entry = entry?;
@@ -148,11 +171,12 @@ pub fn unpack_source(archive: &[u8]) -> anyhow::Result<Source> {
         let mut data = Vec::new();
         entry.read_to_end(&mut data)?;
         if name == DAY_KEY_ENTRY {
-            let len = data.len();
-            day_key = Some(
-                <[u8; KEY_LEN]>::try_from(data)
-                    .map_err(|_| anyhow::anyhow!("day key in source has {len} bytes"))?,
-            );
+            day_key = Some(key_from(&name, data)?);
+        } else if let Some(index) = name.strip_prefix(HINT_KEY_PREFIX) {
+            let index: usize = index
+                .parse()
+                .with_context(|| format!("bad entry {name:?}"))?;
+            hint_keys.insert(index, key_from(&name, data)?);
         } else if let Some(file) = name.strip_prefix(FILES_PREFIX) {
             if file.split('/').any(|part| part == ".." || part.is_empty()) {
                 bail!("unsafe path {file:?} in source archive");
@@ -160,8 +184,12 @@ pub fn unpack_source(archive: &[u8]) -> anyhow::Result<Source> {
             files.insert(file.to_string(), data);
         }
     }
+    let hint_keys: Vec<Key> = hint_keys.into_values().collect();
     Ok(Source {
-        day_key: day_key.context("source archive has no day key")?,
+        keys: DayKeys {
+            day_key: day_key.context("source archive has no day key")?,
+            hint_keys,
+        },
         files,
     })
 }
@@ -185,9 +213,13 @@ mod tests {
             ("puzzle.md".to_string(), b"# Door".to_vec()),
             ("img/map.png".to_string(), vec![0, 1, 2, 255]),
         ]);
-        let key = [9u8; KEY_LEN];
-        let source = unpack_source(&pack_source(&files, &key).unwrap()).unwrap();
-        assert_eq!(source.day_key, key);
+        let keys = DayKeys {
+            day_key: [9u8; KEY_LEN],
+            hint_keys: vec![[1u8; KEY_LEN], [2u8; KEY_LEN]],
+        };
+        let source = unpack_source(&pack_source(&files, &keys).unwrap()).unwrap();
+        assert_eq!(source.keys.day_key, keys.day_key);
+        assert_eq!(source.keys.hint_keys, keys.hint_keys);
         assert_eq!(source.files, files);
     }
 }
