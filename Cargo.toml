@@ -23,3 +23,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
 figment = { version = "0.10", features = ["yaml", "env"] }
+
+# PBKDF2 runs 150 000 to 200 000 rounds per call; unoptimized, that makes
+# every seal and test take seconds. Optimize only the hashing crates in dev.
+[profile.dev.package.sha2]
+opt-level = 3
+
+[profile.dev.package.hmac]
+opt-level = 3
+
+[profile.dev.package.pbkdf2]
+opt-level = 3

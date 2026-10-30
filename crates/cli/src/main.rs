@@ -69,8 +69,8 @@ fn main() -> anyhow::Result<()> {
         Command::UnsealSource { day_dir, force } => commands::unseal_source::run(&day_dir, force),
         Command::Reseal { event, all } => commands::reseal::run(event.as_deref(), all),
         Command::Keeper {
-            command: KeeperCommand::Seal { .. },
-        } => commands::not_yet("keeper seal"),
+            command: KeeperCommand::Seal { event },
+        } => commands::keeper::run(&event),
         Command::Verify { .. } => commands::not_yet("verify"),
     }
 }

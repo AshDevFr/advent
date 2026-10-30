@@ -15,7 +15,7 @@ use advent_core::format;
 use advent_core::wrap::{self, x25519};
 use anyhow::{Context, bail, ensure};
 
-use crate::commands::seal;
+use crate::commands::{keeper, seal};
 use crate::config::{editors_identities, find_repo_root, load_repo_config};
 use crate::day::{self, Plaintext, SEALED_FILE, SOURCE_FILE};
 
@@ -33,6 +33,8 @@ pub fn run(event: Option<&str>, all: bool) -> anyhow::Result<()> {
                 .with_context(|| format!("resealing {}", day_dir.display()))?;
             count += 1;
         }
+        reseal_final(&event_dir, all, &identities, &editors)
+            .with_context(|| format!("resealing the certificate of {}", event_dir.display()))?;
     }
     println!(
         "Resealed {count} day(s) to {} editors and {} release key(s){}.",
@@ -65,12 +67,13 @@ fn reseal_day(
 
     let mut sealed = format::read_sealed_day(&fs::read(day_dir.join(SEALED_FILE))?)
         .context("use `advent reseal --all` to re-seal it in the current schema")?;
+    let keys = source.day_keys()?;
     ensure!(
-        sealed.hints.len() == source.keys.hint_keys.len(),
+        sealed.hints.len() == keys.hint_keys.len(),
         "sealed file and source copy disagree on the number of hints"
     );
-    sealed.day_key = wrap::wrap_key(&source.keys.day_key, release)?;
-    for (hint, key) in sealed.hints.iter_mut().zip(&source.keys.hint_keys) {
+    sealed.day_key = wrap::wrap_key(&keys.day_key, release)?;
+    for (hint, key) in sealed.hints.iter_mut().zip(&keys.hint_keys) {
         hint.key = wrap::wrap_key(key, release)?;
     }
     day::write_atomic(
@@ -81,6 +84,28 @@ fn reseal_day(
         &day_dir.join(SOURCE_FILE),
         &wrap::encrypt_to(&archive, editors)?,
     )
+}
+
+/// The certificate involves no release key, so only its source copy follows
+/// the editors list; with `--all` it is sealed again in the current schema.
+fn reseal_final(
+    event_dir: &Path,
+    all: bool,
+    identities: &[x25519::Identity],
+    editors: &[x25519::Recipient],
+) -> anyhow::Result<()> {
+    let final_dir = event_dir.join(keeper::FINAL_DIR);
+    let source_path = final_dir.join(SOURCE_FILE);
+    if !source_path.is_file() {
+        return Ok(());
+    }
+    let archive = wrap::decrypt_with(&fs::read(&source_path)?, identities)?;
+    if all {
+        let files = day::unpack_source(&archive)?.files;
+        let words = keeper::event_words(event_dir, identities)?;
+        return keeper::seal_final(&final_dir, &files, &words, editors);
+    }
+    day::write_atomic(&source_path, &wrap::encrypt_to(&archive, editors)?)
 }
 
 pub fn event_dirs(root: &Path, event: Option<&str>) -> anyhow::Result<Vec<PathBuf>> {

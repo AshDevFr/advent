@@ -90,6 +90,17 @@ pub struct Bundle {
     pub assets: BTreeMap<String, Vec<u8>>,
 }
 
+/// What the final key decrypts to: the certificate's content.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Certificate {
+    pub title: String,
+    pub message: String,
+    /// WebP image, when the keeper provided one.
+    #[serde(default, with = "b64_opt", skip_serializing_if = "Option::is_none")]
+    pub image: Option<Vec<u8>>,
+}
+
 impl Serialize for WordLock {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         #[derive(Serialize)]
@@ -201,6 +212,28 @@ mod b64_array {
         bytes
             .try_into()
             .map_err(|_| serde::de::Error::custom(format!("expected {N} bytes, got {len}")))
+    }
+}
+
+mod b64_opt {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(bytes: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
+        match bytes {
+            Some(b) => super::b64::serialize(b, s),
+            None => s.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vec<u8>>, D::Error> {
+        use base64::Engine;
+        Option::<String>::deserialize(d)?
+            .map(|text| {
+                base64::engine::general_purpose::STANDARD
+                    .decode(text)
+                    .map_err(serde::de::Error::custom)
+            })
+            .transpose()
     }
 }
 

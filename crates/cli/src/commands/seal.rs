@@ -137,7 +137,7 @@ pub fn seal_day(
         hints,
     };
     let sealed_json = serde_json::to_vec_pretty(&sealed)?;
-    let source = wrap::encrypt_to(&day::pack_source(&plain.files, &keys)?, editors)?;
+    let source = wrap::encrypt_to(&day::pack_source(&plain.files, Some(&keys))?, editors)?;
 
     round_trip(&sealed_json, &bundle, &keys, &answers, meta)
         .context("round-trip check failed; nothing was written")?;

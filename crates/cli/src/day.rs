@@ -131,7 +131,10 @@ pub struct DayKeys {
 
 /// Tar the plaintext files and the day's keys together. Original files are
 /// kept as they were (not the converted WebP), so restoring is exact.
-pub fn pack_source(files: &BTreeMap<String, Vec<u8>>, keys: &DayKeys) -> anyhow::Result<Vec<u8>> {
+pub fn pack_source(
+    files: &BTreeMap<String, Vec<u8>>,
+    keys: Option<&DayKeys>,
+) -> anyhow::Result<Vec<u8>> {
     let mut builder = tar::Builder::new(Vec::new());
     let mut append = |name: &str, data: &[u8]| -> anyhow::Result<()> {
         let mut header = tar::Header::new_gnu();
@@ -141,9 +144,11 @@ pub fn pack_source(files: &BTreeMap<String, Vec<u8>>, keys: &DayKeys) -> anyhow:
         builder.append_data(&mut header, name, data)?;
         Ok(())
     };
-    append(DAY_KEY_ENTRY, &keys.day_key)?;
-    for (i, key) in keys.hint_keys.iter().enumerate() {
-        append(&format!("{HINT_KEY_PREFIX}{i}"), key)?;
+    if let Some(keys) = keys {
+        append(DAY_KEY_ENTRY, &keys.day_key)?;
+        for (i, key) in keys.hint_keys.iter().enumerate() {
+            append(&format!("{HINT_KEY_PREFIX}{i}"), key)?;
+        }
     }
     for (name, data) in files {
         append(&format!("{FILES_PREFIX}{name}"), data)?;
@@ -152,8 +157,15 @@ pub fn pack_source(files: &BTreeMap<String, Vec<u8>>, keys: &DayKeys) -> anyhow:
 }
 
 pub struct Source {
-    pub keys: DayKeys,
+    /// Present for a day's source; a final payload's source has no keys.
+    pub keys: Option<DayKeys>,
     pub files: BTreeMap<String, Vec<u8>>,
+}
+
+impl Source {
+    pub fn day_keys(&self) -> anyhow::Result<&DayKeys> {
+        self.keys.as_ref().context("source archive has no day key")
+    }
 }
 
 fn key_from(name: &str, data: Vec<u8>) -> anyhow::Result<Key> {
@@ -186,10 +198,7 @@ pub fn unpack_source(archive: &[u8]) -> anyhow::Result<Source> {
     }
     let hint_keys: Vec<Key> = hint_keys.into_values().collect();
     Ok(Source {
-        keys: DayKeys {
-            day_key: day_key.context("source archive has no day key")?,
-            hint_keys,
-        },
+        keys: day_key.map(|day_key| DayKeys { day_key, hint_keys }),
         files,
     })
 }
@@ -217,9 +226,13 @@ mod tests {
             day_key: [9u8; KEY_LEN],
             hint_keys: vec![[1u8; KEY_LEN], [2u8; KEY_LEN]],
         };
-        let source = unpack_source(&pack_source(&files, &keys).unwrap()).unwrap();
-        assert_eq!(source.keys.day_key, keys.day_key);
-        assert_eq!(source.keys.hint_keys, keys.hint_keys);
+        let source = unpack_source(&pack_source(&files, Some(&keys)).unwrap()).unwrap();
+        let unpacked = source.day_keys().unwrap();
+        assert_eq!(unpacked.day_key, keys.day_key);
+        assert_eq!(unpacked.hint_keys, keys.hint_keys);
         assert_eq!(source.files, files);
+
+        let without_keys = unpack_source(&pack_source(&files, None).unwrap()).unwrap();
+        assert!(without_keys.keys.is_none());
     }
 }

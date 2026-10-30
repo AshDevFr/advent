@@ -143,6 +143,27 @@ impl DayMeta {
     }
 }
 
+/// `events/<id>/final/final.yaml`: the certificate the keeper writes.
+/// Plaintext, never committed; sealed with the key built from every word.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FinalPayload {
+    pub title: String,
+    pub message: String,
+    /// Optional image file next to `final.yaml`.
+    pub image: Option<String>,
+}
+
+impl FinalPayload {
+    pub fn from_yaml(text: &str) -> Result<Self, ModelError> {
+        let payload: Self = yaml(text)?;
+        if payload.title.trim().is_empty() {
+            return Err(invalid("title", "must not be empty"));
+        }
+        Ok(payload)
+    }
+}
+
 /// `brand/brand.yaml`: who runs the event repo. Shared by every event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

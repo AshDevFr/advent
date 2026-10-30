@@ -52,7 +52,7 @@ pub fn convert(files: &BTreeMap<String, Vec<u8>>, markdown: &str) -> anyhow::Res
     })
 }
 
-fn to_webp(data: &[u8]) -> anyhow::Result<Vec<u8>> {
+pub fn to_webp(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     let format = image::guess_format(data)?;
     let mut img = image::load_from_memory_with_format(data, format)?;
     if img.width() > MAX_DIMENSION || img.height() > MAX_DIMENSION {
