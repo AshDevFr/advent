@@ -4,23 +4,14 @@ import { api, type EventInfo, NotFound, themeCssUrl } from "@/api";
 import { Countdown } from "@/components/Countdown";
 import { DoorGrid, type DoorState } from "@/components/DoorGrid";
 import { KeyStrip } from "@/components/KeyStrip";
+import { DoorPanel } from "@/door/DoorPanel";
+import { Progress } from "@/door/Progress";
 import { useEventProgress } from "@/store";
 import { useThemeCss } from "@/useThemeCss";
 import { Message } from "./Landing";
 
 /** `/<event>/`: the calendar itself. */
-export function EventPage({
-  id,
-  renderDoor,
-}: {
-  id: string;
-  /** The open door's panel, provided by the door module. */
-  renderDoor?: (
-    event: EventInfo,
-    day: number,
-    close: () => void,
-  ) => React.ReactNode;
-}) {
+export function EventPage({ id }: { id: string }) {
   useThemeCss(themeCssUrl(id));
   const [event, setEvent] = useState<EventInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +53,10 @@ export function EventPage({
       )}
       <KeyStrip days={event.days} words={progress.words} />
       <DoorGrid days={event.days} stateOf={stateOf} onOpen={setOpenDay} />
-      {openDay !== null && renderDoor?.(event, openDay, () => setOpenDay(null))}
+      <Progress event={id} />
+      {openDay !== null && (
+        <DoorPanel event={id} day={openDay} onClose={() => setOpenDay(null)} />
+      )}
     </main>
   );
 }
