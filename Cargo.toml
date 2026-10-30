@@ -1,0 +1,25 @@
+[workspace]
+members = ["crates/core", "crates/cli"]
+resolver = "2"
+default-members = ["crates/cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+authors = ["Sylvain Cau <sylvain.cau@gmail.com>"]
+description = "Engine for puzzle advent calendars"
+# cargo-dist derives artifact URLs from this field.
+repository = "https://github.com/AshDevFr/advent"
+
+[workspace.dependencies]
+advent-core = { path = "crates/core" }
+
+# advent-core must stay free of tokio and filesystem access so it builds for
+# wasm32-unknown-unknown; keep runtime-only crates out of its dependency list.
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+figment = { version = "0.10", features = ["yaml", "env"] }

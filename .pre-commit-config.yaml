@@ -1,0 +1,27 @@
+# Install with: make setup-hooks (or: pre-commit install)
+# Run manually: pre-commit run --all-files
+
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: Rust format
+        entry: cargo fmt --
+        language: system
+        types: [rust]
+        pass_filenames: true
+
+      - id: cargo-clippy
+        name: Rust clippy (warnings only)
+        entry: bash -c 'cargo clippy --workspace --all-targets -- -W clippy::all || true'
+        language: system
+        types: [rust]
+        pass_filenames: false
+        verbose: true
+
+      - id: plaintext-guard
+        name: No plaintext puzzle content
+        entry: ./scripts/check-plaintext.sh
+        language: script
+        pass_filenames: false
+        always_run: true

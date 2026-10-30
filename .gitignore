@@ -1,0 +1,46 @@
+# Build artifacts
+target/
+node_modules/
+dist/
+
+# Local-only spec repo
+.specs/
+
+# Plaintext puzzle content must never be committed: only sealed output and the
+# encrypted source copy are. Ignore it wherever it appears in a day or final
+# folder, then allow the template and test fixtures, which are public on purpose.
+# scripts/check-plaintext.sh catches anything force-added past these rules.
+**/day*/puzzle.md
+**/day*/meta.yaml
+**/day*/*.png
+**/day*/*.jpg
+**/day*/*.jpeg
+**/day*/*.gif
+**/day*/*.webp
+**/day*/*.svg
+**/final/final.yaml
+**/final/*.png
+**/final/*.jpg
+**/final/*.jpeg
+**/final/*.gif
+**/final/*.webp
+**/final/*.svg
+!templates/**
+!fixtures/**
+
+# Private keys
+editors.key
+
+# Environment overrides
+.env
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.tmp
+
+# Tooling
+.claude/local/
+.claude/settings.local.json
