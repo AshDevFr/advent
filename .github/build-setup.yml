@@ -1,0 +1,10 @@
+# Runs before `dist build` on every release runner: the advent binary embeds
+# web/dist, which only exists once the frontend is built.
+- name: Install Node
+  uses: actions/setup-node@v4
+  with:
+    node-version: "24"
+    cache: npm
+    cache-dependency-path: web/package-lock.json
+- name: Build the frontend
+  run: make frontend-build

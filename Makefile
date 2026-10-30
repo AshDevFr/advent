@@ -1,6 +1,6 @@
 .PHONY: help build build-release fmt fmt-check lint test check wasm plaintext ci \
 	frontend-install frontend-lint frontend-test frontend-build frontend-ci frontend-dev \
-	changelog changelog-unreleased changelog-release clean setup-hooks
+	changelog changelog-unreleased changelog-release release-prepare dist-plan clean setup-hooks
 
 BLUE := \033[0;34m
 GREEN := \033[0;32m
@@ -83,6 +83,26 @@ changelog-release: ## Generate the changelog for a version (usage: make changelo
 	fi
 	@touch CHANGELOG.md
 	git-cliff --unreleased --tag v$(VERSION) --prepend CHANGELOG.md
+
+# ── Release (cargo-dist) ─────────────────────────────────────────────────────
+# Pushing a tag vX.Y.Z runs .github/workflows/release.yml, which builds the
+# frontend and then the advent binaries with it embedded.
+
+dist-plan: ## Show what a release would build
+	dist plan
+
+release-prepare: ## Bump versions and the changelog (usage: make release-prepare VERSION=1.0.0)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "$(YELLOW)Error: VERSION not set. Use: make release-prepare VERSION=1.0.0$(NC)"; \
+		exit 1; \
+	fi
+	sed -i.bak 's/^version = ".*"/version = "$(VERSION)"/' Cargo.toml && rm Cargo.toml.bak
+	cd web && npm version $(VERSION) --no-git-tag-version --allow-same-version >/dev/null
+	cargo build --quiet
+	$(MAKE) changelog-release VERSION=$(VERSION)
+	@echo ""
+	@echo "$(GREEN)Release v$(VERSION) prepared.$(NC) Review, then:"
+	@echo "  git commit -am \"chore(release): v$(VERSION)\" && git tag v$(VERSION) && git push --follow-tags"
 
 # ── Misc ─────────────────────────────────────────────────────────────────────
 

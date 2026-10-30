@@ -34,3 +34,26 @@ opt-level = 3
 
 [profile.dev.package.pbkdf2]
 opt-level = 3
+
+# The profile `dist build` compiles release binaries with.
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+[workspace.metadata.dist]
+# Keep in step with the installed `dist` and .github/workflows/release.yml
+# (regenerate that file with `dist generate` after changing anything here).
+cargo-dist-version = "0.30.3"
+ci = "github"
+installers = ["shell"]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
+]
+# The binary embeds web/dist, so the frontend must be built before cargo.
+github-build-setup = "../build-setup.yml"
+pr-run-mode = "plan"
+install-updater = false
+install-path = "CARGO_HOME"
