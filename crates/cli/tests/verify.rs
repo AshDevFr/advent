@@ -135,3 +135,36 @@ fn verify_reports_the_engine_that_sealed_an_unknown_schema() {
         .failure()
         .stderr(contains("advent 9.0.0").and(contains("day 5")));
 }
+
+#[test]
+fn verify_released_tolerates_days_not_yet_out() {
+    // The sample event starts on 2026-12-01; before then nothing is
+    // released, so a half-written calendar must still pass the deploy gate.
+    let repo = Repo::init();
+    let event_yaml = repo.event_dir().join("event.yaml");
+    let text = fs::read_to_string(&event_yaml)
+        .unwrap()
+        .replace("start: \"2026-12-01\"", "start: \"2099-12-01\"");
+    fs::write(&event_yaml, text).unwrap();
+    for n in 1..=2 {
+        repo.add_example(n, n);
+        repo.advent()
+            .args(["seal", &format!("events/2026/day{n:02}")])
+            .assert()
+            .success();
+    }
+    git(&repo, &["init", "-q"]);
+
+    repo.advent()
+        .args(["verify", "--release", "--released"])
+        .env("ADVENT_RELEASE_KEY", &repo.release_secret)
+        .assert()
+        .success()
+        .stdout(contains("OK"));
+    repo.advent()
+        .args(["verify", "--release"])
+        .env("ADVENT_RELEASE_KEY", &repo.release_secret)
+        .assert()
+        .failure()
+        .stderr(contains("day 3 is not sealed").and(contains("certificate is not sealed")));
+}

@@ -64,6 +64,10 @@ enum Command {
         /// Also check every wrapped key with the release key (prints only OK or broken days).
         #[arg(long)]
         release: bool,
+        /// Only require days released by now to be sealed, and the certificate
+        /// once the last day is out (the CI deploy gate).
+        #[arg(long)]
+        released: bool,
     },
 }
 
@@ -83,7 +87,11 @@ fn main() -> anyhow::Result<()> {
             command: KeeperCommand::Seal { event },
         } => commands::keeper::run(&event),
         Command::Build { until, out } => commands::build::run(until, &out),
-        Command::Verify { event, release } => commands::verify::run(event.as_deref(), release),
+        Command::Verify {
+            event,
+            release,
+            released,
+        } => commands::verify::run(event.as_deref(), release, released),
     }
 }
 

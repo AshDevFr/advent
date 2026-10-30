@@ -1,0 +1,70 @@
+# Builds this calendar's static site and deploys it to Cloudflare Pages.
+#
+# The site depends only on the date: each run publishes the days and hints
+# that are out by then, so extra or repeated runs are harmless.
+#
+# Setup (once):
+#   - secret ADVENT_RELEASE_KEY: the release key printed by `advent init`
+#   - secret CLOUDFLARE_API_TOKEN: a token with "Cloudflare Pages: Edit"
+#   - secret CLOUDFLARE_ACCOUNT_ID
+#   - variable CLOUDFLARE_PAGES_PROJECT: the Pages project to deploy to
+#
+# Anyone who can push to this repository can read ADVENT_RELEASE_KEY through
+# a workflow, so keep push access to people you trust with it.
+
+name: Build and deploy
+
+on:
+  # Days open at 00:00 in the event's timezone (events/*/event.yaml). These
+  # run just after midnight UTC and an hour later, during December and early
+  # January only; for another timezone, shift the hours so one run lands
+  # just after local midnight in both summer and winter time.
+  schedule:
+    - cron: "5 0 * 12 *"
+    - cron: "5 1 * 12 *"
+    - cron: "5 0 1-3 1 *"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Where the engine is released; change it to use a fork.
+      ADVENT_ENGINE_REPO: ${{ vars.ADVENT_ENGINE_REPO || 'AshDevFr/advent' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the pinned advent engine
+        run: |
+          version=$(sed -n 's/^engine: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' advent.yaml)
+          echo "advent ${version} from ${ADVENT_ENGINE_REPO}"
+          url="https://github.com/${ADVENT_ENGINE_REPO}/releases/download/v${version}/advent-cli-x86_64-unknown-linux-gnu.tar.xz"
+          curl -fsSL "$url" | tar -xJ --strip-components=1 -C /usr/local/bin advent-cli-x86_64-unknown-linux-gnu/advent
+          advent --version
+
+      - name: Check what is released (no plaintext, every released day opens)
+        run: advent verify --release --released
+        env:
+          ADVENT_RELEASE_KEY: ${{ secrets.ADVENT_RELEASE_KEY }}
+
+      - name: Build the site
+        run: advent build --out dist
+        env:
+          ADVENT_RELEASE_KEY: ${{ secrets.ADVENT_RELEASE_KEY }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=main

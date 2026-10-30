@@ -7,6 +7,11 @@
 //!   (box, hints, word locks) and the certificate opens with the words;
 //! - with `--release`: every wrapped key opens with the release key. This
 //!   runs in CI logs, so its output names broken days and never content.
+//!
+//! With `--released`, completeness is only required for what is out: days
+//! not yet released may still be unsealed, and the certificate is only
+//! required once the last day is released. That is the deploy gate an event
+//! repo's CI uses in November, while authors are still writing.
 
 use std::fs;
 use std::path::Path;
@@ -15,14 +20,16 @@ use std::process::Command;
 use advent_core::format::{self, Bundle, FormatError, SealedDay};
 use advent_core::model::Event;
 use advent_core::primitives;
+use advent_core::schedule::is_released;
 use advent_core::wrap::{self, x25519};
 use anyhow::{Context, bail};
+use chrono::{DateTime, Utc};
 
 use crate::commands::{keeper, reseal};
 use crate::config::{EDITORS_KEY_FILE, editors_identities, find_repo_root, release_identities};
 use crate::day::{self, Plaintext, SEALED_FILE, SOURCE_FILE};
 
-pub fn run(event: Option<&str>, release: bool) -> anyhow::Result<()> {
+pub fn run(event: Option<&str>, release: bool, released_only: bool) -> anyhow::Result<()> {
     let root = find_repo_root(Path::new("."))?;
     let editors = editors_key(&root)?;
     let release_ids = if release {
@@ -40,10 +47,12 @@ pub fn run(event: Option<&str>, release: bool) -> anyhow::Result<()> {
             .to_string_lossy()
             .into_owned();
         let mut report = |p: String| problems.push(format!("{id}: {p}"));
+        let now = released_only.then(Utc::now);
         check_event(
             &event_dir,
             editors.as_deref(),
             release_ids.as_deref(),
+            now,
             &mut report,
         )?;
     }
@@ -75,6 +84,7 @@ fn check_event(
     event_dir: &Path,
     editors: Option<&[x25519::Identity]>,
     release: Option<&[x25519::Identity]>,
+    released_as_of: Option<DateTime<Utc>>,
     report: &mut dyn FnMut(String),
 ) -> anyhow::Result<()> {
     let event_file = event_dir.join("event.yaml");
@@ -103,7 +113,10 @@ fn check_event(
     for n in 1..=event.days {
         let dir = event_dir.join(format!("day{n:02}"));
         if !dir.join(SEALED_FILE).is_file() || !dir.join(SOURCE_FILE).is_file() {
-            report(format!("day {n} is not sealed"));
+            let pending = released_as_of.is_some_and(|now| !is_released(&event, n, now));
+            if !pending {
+                report(format!("day {n} is not sealed"));
+            }
             words = None;
             continue;
         }
@@ -145,7 +158,12 @@ fn check_event(
 
     let final_sealed = event_dir.join(keeper::FINAL_DIR).join(SEALED_FILE);
     match fs::read(&final_sealed) {
-        Err(_) => report("the certificate is not sealed (run `advent keeper seal`)".into()),
+        Err(_) => {
+            let all_out = released_as_of.is_none_or(|now| is_released(&event, event.days, now));
+            if all_out {
+                report("the certificate is not sealed (run `advent keeper seal`)".into());
+            }
+        }
         Ok(bytes) => match format::read_sealed_final(&bytes) {
             Err(e) => report(format!("certificate: {e}")),
             Ok(sealed) => {
