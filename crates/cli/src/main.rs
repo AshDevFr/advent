@@ -1,5 +1,8 @@
 mod commands;
 mod config;
+mod day;
+mod images;
+mod random;
 
 use std::path::PathBuf;
 
@@ -62,7 +65,7 @@ enum KeeperCommand {
 fn main() -> anyhow::Result<()> {
     match Cli::parse().command {
         Command::Init { dir, event } => commands::init::run(&dir, event.as_deref()),
-        Command::Seal { .. } => commands::not_yet("seal"),
+        Command::Seal { day_dir } => commands::seal::run(&day_dir),
         Command::UnsealSource { .. } => commands::not_yet("unseal-source"),
         Command::Reseal { .. } => commands::not_yet("reseal"),
         Command::Keeper {
