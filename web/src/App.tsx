@@ -1,11 +1,8 @@
-import { Button } from "@/components/ui/button";
+import { EventPage } from "@/pages/Event";
+import { Landing } from "@/pages/Landing";
 
-export function App() {
-  return (
-    <main className="mx-auto flex min-h-svh max-w-2xl flex-col items-center justify-center gap-6 p-6 text-center">
-      <h1 className="text-3xl font-semibold">Advent calendar</h1>
-      <p className="text-muted-foreground">The calendar is on its way.</p>
-      <Button type="button">Open a door</Button>
-    </main>
-  );
+/** `/` is the landing page; `/<event>/` is that event's calendar. */
+export function App({ path = window.location.pathname }: { path?: string }) {
+  const id = path.split("/").filter(Boolean)[0];
+  return id ? <EventPage id={decodeURIComponent(id)} /> : <Landing />;
 }
