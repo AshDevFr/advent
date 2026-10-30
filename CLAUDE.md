@@ -25,6 +25,9 @@ The PRD and phase specs in `.specs/docs/` are the source of truth.
 - `make ci`: fmt check, clippy, tests, wasm32 build of core, plaintext guard. CI runs exactly this.
 - `make check`: format, lint and test locally.
 - `make setup-hooks`: install pre-commit hooks.
+- `make frontend-build` before building the CLI: `advent` embeds `web/dist` when it exists at compile
+  time. Cargo tracks it by timestamp, so if an older `web/dist` is restored by hand, `touch
+  web/dist/index.html` so the next build picks it up.
 
 ## Task Workflow
 

@@ -29,7 +29,13 @@ pub fn run(until: Option<NaiveDate>, out: &Path) -> anyhow::Result<()> {
     let root = find_repo_root(Path::new("."))?;
     load_repo_config(&root)?;
     let release = release_identities()?;
+    let event_dirs = reseal::event_dirs(&root, None)?;
+    let ids: Vec<String> = event_dirs
+        .iter()
+        .filter_map(|d| d.file_name()?.to_str().map(str::to_owned))
+        .collect();
     prepare_out(out)?;
+    crate::web::write(out, &ids)?;
 
     let brand = read_optional::<Brand>(&root.join("brand/brand.yaml"), Brand::from_yaml)?;
     let logo = match brand.as_ref().and_then(|b| b.logo.as_ref()) {
@@ -45,7 +51,7 @@ pub fn run(until: Option<NaiveDate>, out: &Path) -> anyhow::Result<()> {
     fs::write(out.join("theme.css"), theme_css(brand.as_ref(), None)?)?;
 
     let mut events = Vec::new();
-    for event_dir in reseal::event_dirs(&root, None)? {
+    for event_dir in event_dirs {
         let info = build_event(&event_dir, until, brand.as_ref(), &release, out)
             .with_context(|| format!("building {}", event_dir.display()))?;
         events.push(info);

@@ -3,6 +3,7 @@ mod config;
 mod day;
 mod images;
 mod random;
+mod web;
 
 use std::path::PathBuf;
 

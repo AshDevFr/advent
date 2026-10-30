@@ -14,10 +14,10 @@ help: ## Show this help message
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
-build: ## Build the debug binary
+build: frontend-build ## Build the debug binary (with the frontend embedded)
 	cargo build --workspace
 
-build-release: ## Build the release binary
+build-release: frontend-build ## Build the release binary (with the frontend embedded)
 	cargo build --release
 
 # ── Code quality ─────────────────────────────────────────────────────────────
@@ -42,7 +42,8 @@ plaintext: ## Fail if plaintext puzzle content is tracked outside templates/ and
 
 check: fmt lint test ## Format, lint and test
 
-ci: fmt-check lint test wasm plaintext frontend-ci ## Everything CI runs
+# The frontend is built first: the CLI embeds web/dist and its tests use it.
+ci: frontend-ci fmt-check lint test wasm plaintext ## Everything CI runs
 
 # ── Frontend (web/) ──────────────────────────────────────────────────────────
 
