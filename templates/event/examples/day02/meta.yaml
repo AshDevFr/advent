@@ -1,0 +1,10 @@
+title: Count the candles
+type: code
+# A short number is easy to brute-force, so `advent seal` warns about it. In a
+# real calendar, ask for something longer, such as "55 candles".
+answers:
+  - "55"
+word: returns
+hints:
+  - The loop adds every night from 1 to 10.
+  - 1 + 2 + ... + 10.

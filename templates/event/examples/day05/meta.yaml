@@ -1,0 +1,10 @@
+title: Who wrapped what?
+type: logic
+# Asking for two names makes the answer much harder to guess than one.
+answers:
+  - alba cleo
+  - alba and cleo
+word: longest
+hints:
+  - Bram is out of the question for both gifts.
+  - Alba could only have wrapped one of the two remaining gifts.

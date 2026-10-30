@@ -1,0 +1,8 @@
+title: A shifted message
+type: cipher
+answers:
+  - snowflake
+word: the
+hints:
+  - Move every letter three places back.
+  - V becomes S.
