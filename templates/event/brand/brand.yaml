@@ -1,0 +1,9 @@
+# Who runs this calendar. Shared by every event in the repo; an event's
+# theme.yaml can restyle colours but never change the name or logo.
+name: Advent Calendar
+logo: logo.svg
+palette:
+  primary: "#b3261e"
+  surface: "#fffaf3"
+  text: "#1f1b16"
+  accent: "#2e7d32"

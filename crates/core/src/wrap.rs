@@ -8,7 +8,7 @@ use std::io::{Read, Write};
 use std::str::FromStr;
 
 use age::secrecy::ExposeSecret;
-use age::x25519;
+pub use age::x25519;
 
 use crate::primitives::{KEY_LEN, Key};
 

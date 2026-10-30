@@ -1,0 +1,18 @@
+# Plaintext puzzle content must never be committed. Inside day and final
+# folders everything is ignored by default and only the sealed output and the
+# encrypted source copy are allowed, so a new kind of plaintext file is
+# ignored without anyone having to add a rule.
+events/*/day*/*
+!events/*/day*/sealed.json
+!events/*/day*/source.age
+events/*/final/*
+!events/*/final/sealed.json
+!events/*/final/source.age
+
+# Private keys
+editors.key
+
+# Build output (deployed straight from CI, never committed)
+dist/
+
+.DS_Store

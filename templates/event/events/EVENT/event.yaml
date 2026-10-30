@@ -1,0 +1,7 @@
+title: "Advent {{event}}"
+# Days open at 00:00 in this timezone (an IANA name such as Europe/Paris).
+timezone: UTC
+start: "{{start}}"
+days: 24
+story:
+  intro: "Twenty-four doors, one key. Solve each day to collect its word."

@@ -1,0 +1,17 @@
+# Engine version this repo builds with. CI downloads exactly this release of
+# `advent`; bump it to upgrade, then run `advent reseal --all` if the sealed
+# format changed.
+engine: "{{engine}}"
+
+# Public keys only. Anyone can seal a day with these; nobody can open
+# anything with them. Lists, so a key can be rotated: add the new key,
+# `advent reseal`, switch the private key, then remove the old one.
+keys:
+  # Open the encrypted sources (source.age). The private half is shared
+  # among authors: editors.key at the repo root, or ADVENT_EDITORS_KEY.
+  editors:
+    - "{{editors}}"
+  # Release days and hints on their dates. The private half lives only in
+  # CI secrets (ADVENT_RELEASE_KEY), never on a laptop.
+  release:
+    - "{{release}}"

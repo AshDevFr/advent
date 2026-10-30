@@ -48,13 +48,20 @@ pub struct Keys {
 impl RepoConfig {
     pub fn from_yaml(text: &str) -> Result<Self, ModelError> {
         let config: Self = yaml(text)?;
-        if config.keys.editors.is_empty() {
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Checks for a config built some other way (the CLI layers env vars
+    /// over the file with figment).
+    pub fn validate(&self) -> Result<(), ModelError> {
+        if self.keys.editors.is_empty() {
             return Err(invalid("keys.editors", "needs at least one public key"));
         }
-        if config.keys.release.is_empty() {
+        if self.keys.release.is_empty() {
             return Err(invalid("keys.release", "needs at least one public key"));
         }
-        Ok(config)
+        Ok(())
     }
 }
 
