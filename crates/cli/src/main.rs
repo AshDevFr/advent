@@ -47,6 +47,16 @@ enum Command {
         #[command(subcommand)]
         command: KeeperCommand,
     },
+    /// Write the static site: released days, due hints, word locks, theme.
+    Build {
+        /// Build as of the end of this date (YYYY-MM-DD) in each event's
+        /// timezone, instead of now.
+        #[arg(long)]
+        until: Option<chrono::NaiveDate>,
+        /// Output folder.
+        #[arg(long, default_value = "dist")]
+        out: PathBuf,
+    },
     /// Check that an event repo is complete and its sealed files open.
     Verify {
         event: Option<String>,
@@ -71,6 +81,7 @@ fn main() -> anyhow::Result<()> {
         Command::Keeper {
             command: KeeperCommand::Seal { event },
         } => commands::keeper::run(&event),
+        Command::Build { until, out } => commands::build::run(until, &out),
         Command::Verify { event, release } => commands::verify::run(event.as_deref(), release),
     }
 }

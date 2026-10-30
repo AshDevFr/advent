@@ -104,5 +104,39 @@ pub fn copy_dir(from: &Path, to: &Path) {
     }
 }
 
+/// The template's sample event: 7 days sealed and the certificate sealed.
+pub fn sample_event() -> Repo {
+    let repo = Repo::init();
+    let event_yaml = repo.event_dir().join("event.yaml");
+    let text = fs::read_to_string(&event_yaml)
+        .unwrap()
+        .replace("days: 24", "days: 7");
+    fs::write(&event_yaml, text).unwrap();
+
+    for n in 1..=7 {
+        repo.add_example(n, n);
+        repo.advent()
+            .args(["seal", &format!("events/2026/day{n:02}")])
+            .assert()
+            .success();
+    }
+    let final_dir = repo.event_dir().join("final");
+    fs::create_dir_all(&final_dir).unwrap();
+    fs::copy(
+        examples().join("final/final.yaml"),
+        final_dir.join("final.yaml"),
+    )
+    .unwrap();
+    repo.advent()
+        .args(["keeper", "seal", "2026"])
+        .assert()
+        .success();
+    repo
+}
+
+pub const SAMPLE_WORDS: [&str; 7] = [
+    "light", "returns", "after", "the", "longest", "winter", "night",
+];
+
 pub const SIMPLE_META: &str =
     "title: Simple\ntype: teaser\nanswers: [lantern]\nword: light\nhints: [It glows.]\n";

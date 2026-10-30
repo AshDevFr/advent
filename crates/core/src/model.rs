@@ -170,8 +170,12 @@ impl FinalPayload {
 pub struct Brand {
     pub name: String,
     pub logo: Option<String>,
+    /// Light-mode colours.
     #[serde(default)]
     pub palette: BTreeMap<String, String>,
+    /// Dark-mode colours; without it, dark mode uses the engine defaults.
+    #[serde(default)]
+    pub palette_dark: BTreeMap<String, String>,
 }
 
 impl Brand {
@@ -187,6 +191,8 @@ impl Brand {
 pub struct Theme {
     #[serde(default)]
     pub palette: BTreeMap<String, String>,
+    #[serde(default)]
+    pub palette_dark: BTreeMap<String, String>,
     /// Shorthand for the `accent` palette token.
     pub accent: Option<String>,
     pub background: Option<String>,
@@ -200,19 +206,42 @@ impl Theme {
     }
 }
 
+/// Colour scheme a set of tokens is resolved for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Scheme {
+    Light,
+    Dark,
+}
+
 /// Merge palette tokens: engine defaults, then the brand, then the theme,
-/// later layers winning. A missing layer is skipped.
+/// later layers winning. A missing layer is skipped. Each scheme reads only
+/// its own palettes, so a light palette never leaks into dark mode.
 pub fn resolve_tokens(
+    defaults: &BTreeMap<String, String>,
+    brand: Option<&Brand>,
+    theme: Option<&Theme>,
+) -> BTreeMap<String, String> {
+    resolve_scheme(Scheme::Light, defaults, brand, theme)
+}
+
+pub fn resolve_scheme(
+    scheme: Scheme,
     defaults: &BTreeMap<String, String>,
     brand: Option<&Brand>,
     theme: Option<&Theme>,
 ) -> BTreeMap<String, String> {
     let mut tokens = defaults.clone();
     if let Some(brand) = brand {
-        tokens.extend(brand.palette.clone());
+        tokens.extend(match scheme {
+            Scheme::Light => brand.palette.clone(),
+            Scheme::Dark => brand.palette_dark.clone(),
+        });
     }
     if let Some(theme) = theme {
-        tokens.extend(theme.palette.clone());
+        tokens.extend(match scheme {
+            Scheme::Light => theme.palette.clone(),
+            Scheme::Dark => theme.palette_dark.clone(),
+        });
         if let Some(accent) = &theme.accent {
             tokens.insert("accent".into(), accent.clone());
         }
@@ -273,6 +302,7 @@ mod tests {
             name: "Acme".into(),
             logo: None,
             palette: BTreeMap::from([("primary".to_string(), "#05a".to_string())]),
+            palette_dark: BTreeMap::new(),
         };
         let theme = Theme {
             palette: BTreeMap::from([("surface".to_string(), "#0b1026".to_string())]),
@@ -288,6 +318,12 @@ mod tests {
         let no_theme = resolve_tokens(&defaults, Some(&brand), None);
         assert_eq!(no_theme["primary"], "#05a");
         assert_eq!(no_theme["surface"], "#fff");
+
+        let dark = resolve_scheme(Scheme::Dark, &defaults, Some(&brand), None);
+        assert_eq!(
+            dark["primary"], "#000",
+            "light brand palette stays out of dark mode"
+        );
     }
 
     #[test]

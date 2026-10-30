@@ -1,3 +1,4 @@
+pub mod build;
 pub mod init;
 pub mod keeper;
 pub mod reseal;

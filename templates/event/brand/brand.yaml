@@ -2,8 +2,17 @@
 # theme.yaml can restyle colours but never change the name or logo.
 name: Advent Calendar
 logo: logo.svg
+
+# Light-mode colours. Keys: primary, on-primary, surface, surface-raised,
+# text, text-muted, accent, border. Missing keys keep the engine defaults.
 palette:
   primary: "#b3261e"
   surface: "#fffaf3"
   text: "#1f1b16"
   accent: "#2e7d32"
+
+# Dark-mode colours, used when the player's device prefers dark mode.
+# Without this section, dark mode uses the engine's dark defaults.
+# palette_dark:
+#   primary: "#ffb4a9"
+#   surface: "#1a1612"

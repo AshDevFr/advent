@@ -36,6 +36,16 @@ fn start_of_day(tz: Tz, date: NaiveDate) -> DateTime<Utc> {
     }
 }
 
+/// The last second of `date` in `tz`, for building "as of" a date.
+pub fn end_of_date(tz: Tz, date: NaiveDate) -> DateTime<Utc> {
+    start_of_day(tz, date + Days::new(1)) - chrono::Duration::seconds(1)
+}
+
+/// When day 1 opens, or `None` if it is unlocked regardless of the date.
+pub fn first_release(event: &Event) -> Option<DateTime<Utc>> {
+    release_time(event, 1)
+}
+
 fn day_date(event: &Event, day: u32) -> NaiveDate {
     event.start + Days::new(u64::from(day - 1))
 }
@@ -146,6 +156,15 @@ mod tests {
         let date: NaiveDate = "2026-09-06".parse().unwrap();
         let start = start_of_day(chrono_tz::America::Santiago, date);
         assert_eq!(start, at("2026-09-06T04:00:00Z"));
+    }
+
+    #[test]
+    fn model_schedule_end_of_date_is_the_last_local_second() {
+        let date: NaiveDate = "2026-12-03".parse().unwrap();
+        assert_eq!(
+            end_of_date(chrono_tz::Europe::Paris, date),
+            at("2026-12-03T22:59:59Z")
+        );
     }
 
     #[test]
