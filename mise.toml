@@ -1,0 +1,4 @@
+# Node is pinned to the active LTS major for the web/ frontend. Rust is
+# managed by rustup via rust-toolchain.toml.
+[tools]
+node = "24"

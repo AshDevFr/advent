@@ -1,4 +1,5 @@
 .PHONY: help build build-release fmt fmt-check lint test check wasm plaintext ci \
+	frontend-install frontend-lint frontend-test frontend-build frontend-ci frontend-dev \
 	changelog changelog-unreleased changelog-release clean setup-hooks
 
 BLUE := \033[0;34m
@@ -41,7 +42,29 @@ plaintext: ## Fail if plaintext puzzle content is tracked outside templates/ and
 
 check: fmt lint test ## Format, lint and test
 
-ci: fmt-check lint test wasm plaintext ## Everything CI runs
+ci: fmt-check lint test wasm plaintext frontend-ci ## Everything CI runs
+
+# ── Frontend (web/) ──────────────────────────────────────────────────────────
+
+web/node_modules: web/package.json web/package-lock.json
+	cd web && npm ci
+	@touch web/node_modules
+
+frontend-install: web/node_modules ## Install frontend dependencies
+
+frontend-lint: web/node_modules ## Lint and format-check the frontend (Biome)
+	cd web && npm run lint
+
+frontend-test: web/node_modules ## Run frontend tests (Vitest)
+	cd web && npm test
+
+frontend-build: web/node_modules ## Build the frontend into web/dist
+	cd web && npm run build
+
+frontend-ci: frontend-lint frontend-test frontend-build ## Frontend lint, tests and build
+
+frontend-dev: web/node_modules ## Start the Vite dev server
+	cd web && npm run dev
 
 # ── Changelog (git-cliff) ────────────────────────────────────────────────────
 
@@ -64,6 +87,7 @@ changelog-release: ## Generate the changelog for a version (usage: make changelo
 
 clean: ## Remove build artifacts
 	cargo clean
+	rm -rf web/dist web/node_modules
 
 setup-hooks: ## Install git pre-commit hooks
 	bash scripts/setup-hooks.sh
