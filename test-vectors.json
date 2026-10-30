@@ -82,8 +82,106 @@
       "note": "empty input"
     }
   ],
-  "word": [],
-  "bundle": [],
-  "hint": [],
-  "final": []
+  "word": [
+    {
+      "answer": "Paris",
+      "normalized": "paris",
+      "word": "light",
+      "salt": "afaBAts3NponsjMMaGfLWA==",
+      "iv": "afaBzGaMGaTvia88",
+      "ct": "jGbomjKBREXZ25vHnzp02TtvP/2Y"
+    },
+    {
+      "answer": "  L'Été 2014! ",
+      "normalized": "lete2014",
+      "word": "returns",
+      "salt": "aRWBAts3NppGsjMMaGfLdw==",
+      "iv": "aRWBzGaMOKTvia9b",
+      "ct": "uXL2tfwpIxqgUPjSwFr6fQju01TGijo="
+    },
+    {
+      "answer": "Ångström",
+      "normalized": "angstrom",
+      "word": "after",
+      "salt": "aTSBAts3NpplsjMMaGfLlg==",
+      "iv": "aTSBzGaMV6Tvia96",
+      "ct": "IPQ9/aG7yDBr0ZFRAp9P46Itn7QI"
+    }
+  ],
+  "bundle": [
+    {
+      "key": "3vaBClfKCCCrNIH0MkrVXqseXHT/iNVIhp4psv9ysMg=",
+      "iv": "3vaBzGYBGaTviSQ8",
+      "plaintext": "{\"title\":\"Day 1\",\"type\":\"teaser\",\"markdown\":\"# Hello\",\"assets\":{}}",
+      "ct": "u4l0jpqWa5qZgsGGEd0LJYfORR2g+s9vYqiPqC/KPSdtjsWSaTT58peFNUqi3iZ1liRNVP5kbeX1OgsD2NEtmb5qHgWBJJBZc1HF/Fc3J5gtTg=="
+    },
+    {
+      "key": "3hWBClfKCD+rNIH0MmnVXqseXJP/iNVIhr0psv9ysOc=",
+      "iv": "3hWBzGYBOKTviSRb",
+      "plaintext": "puzzle body with ünïcödé",
+      "ct": "zbOYwoYAgduyaj99Nxb+8EgTQ+1fZXAYTuyws8/6A50IaEVZ0eKz9RKMpg8="
+    },
+    {
+      "key": "3jSBClfKCF6rNIH0MojVXqseXLL/iNVIhtwpsv9ysAY=",
+      "iv": "3jSBzGYBV6TviSR6",
+      "plaintext": "",
+      "ct": "Jhkr/LH70SW1cYAUAocaxw=="
+    }
+  ],
+  "hint": [
+    {
+      "key": "mPaBClfKwiCrNIH07ErVXqseFnT/iNVIQJ4psv9yasg=",
+      "iv": "mPaBzGa7GaTvid48",
+      "plaintext": "Think about capitals.",
+      "ct": "m8hBDKCqKMXLaTmvWg8jbv3NOkCbk7zyQN25IkTmYWCtMTzhBw=="
+    },
+    {
+      "key": "mBWBClfKwj+rNIH07GnVXqseFpP/iNVIQL0psv9yauc=",
+      "iv": "mBWBzGa7OKTvid5b",
+      "plaintext": "The year matters.",
+      "ct": "axSU0zLc1b5bBvMvPEgNt5G3sWy24A67BVrADyK+qZNy"
+    },
+    {
+      "key": "mDSBClfKwl6rNIH07IjVXqseFrL/iNVIQNwpsv9yagY=",
+      "iv": "mDSBzGa7V6Tvid56",
+      "plaintext": "Look closer at the picture: 🔍",
+      "ct": "3Y6Kd/F8gTrykmL+V9j4mBMN+d8fptQ8G4rqqIzrwUA/o2/KBdlwC0LRHAae2Bc8"
+    }
+  ],
+  "final": [
+    {
+      "words": [
+        "light",
+        "returns",
+        "after"
+      ],
+      "salt": "WvaBAts3NosnsjMMaGe8WA==",
+      "iv": "WvaBzGZ9GaTviaA8",
+      "plaintext": "{\"title\":\"Well done\",\"message\":\"You made it.\"}",
+      "ct": "A/mM0N98SsC6I8ulq8EESKUMgyMl+uc+AIfMXIrJi1KLIEp7ggthMqGCRDkp3F3gEMbAys0E7Jupdl+C7UI="
+    },
+    {
+      "words": [
+        "one"
+      ],
+      "salt": "WhWBAts3NotGsjMMaGe8dw==",
+      "iv": "WhWBzGZ9OKTviaBb",
+      "plaintext": "single word",
+      "ct": "elYN82unkXDTuc/D6ic8ccOJlAJcUc+yrzA1"
+    },
+    {
+      "words": [
+        "light",
+        "returns",
+        "after",
+        "the",
+        "longest",
+        "night"
+      ],
+      "salt": "WjSBAts3NotlsjMMaGe8lg==",
+      "iv": "WjSBzGZ9V6TviaB6",
+      "plaintext": "Certificate",
+      "ct": "dk9tDTOQpz0HEAcUQjjCzni3T1ovOvEJf5RG"
+    }
+  ]
 }

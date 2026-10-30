@@ -9,7 +9,13 @@ repository.workspace = true
 
 [dependencies]
 unicode-normalization = "0.1"
+# No getrandom: callers pass IVs in, and getrandom does not build for wasm32-unknown-unknown.
+aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc"] }
+pbkdf2 = "0.13"
+sha2 = "0.11"
+thiserror = { workspace = true }
 
 [dev-dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+base64 = "0.22"

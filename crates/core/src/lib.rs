@@ -6,6 +6,7 @@
 
 mod guessable;
 mod normalize;
+pub mod primitives;
 
 pub use guessable::{GuessableReason, guessable};
 pub use normalize::{is_normalized_word, normalize};
