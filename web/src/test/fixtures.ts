@@ -23,14 +23,22 @@ export const site = (events: EventInfo[]): SiteIndex => ({
   events,
 });
 
-/** Serve `files` (path to JSON) through a mocked fetch. */
+/**
+ * Serve `files` (site path to JSON) through a mocked fetch. Keys are written
+ * as site paths ("/2026/event.json"); the app requests them relative to the
+ * base ("2026/event.json"), so both forms match.
+ */
 export function serve(files: Record<string, unknown>) {
+  const byPath = new Map(
+    Object.entries(files).map(([k, v]) => [k.replace(/^\//, ""), v]),
+  );
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (path: string) =>
-      path in files
-        ? new Response(JSON.stringify(files[path]), { status: 200 })
-        : new Response("not found", { status: 404 }),
-    ),
+    vi.fn(async (path: string) => {
+      const key = path.replace(/^\//, "");
+      return byPath.has(key)
+        ? new Response(JSON.stringify(byPath.get(key)), { status: 200 })
+        : new Response("not found", { status: 404 });
+    }),
   );
 }

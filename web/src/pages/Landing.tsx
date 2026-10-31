@@ -64,7 +64,7 @@ export function Landing() {
               <Countdown target={opensAt} />
             ) : (
               <a
-                href={`/${event.id}/`}
+                href={`${event.id}/`}
                 className={buttonVariants({ className: "self-start" })}
               >
                 Open the calendar

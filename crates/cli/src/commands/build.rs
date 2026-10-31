@@ -27,7 +27,12 @@ use crate::day::SEALED_FILE;
 /// Marks a folder as written by `advent build`, so it can be replaced safely.
 const MARKER: &str = ".advent-build";
 
-pub fn run(until: Option<NaiveDate>, out: &Path) -> anyhow::Result<()> {
+pub fn run(until: Option<NaiveDate>, out: &Path, base: &str) -> anyhow::Result<()> {
+    if !(base.starts_with('/') && base.ends_with('/')) || base.contains(['"', '<', '>', ' ']) {
+        bail!(
+            "--base must be a path that starts and ends with a slash, such as / or /demo/ (got {base:?})"
+        );
+    }
     let root = find_repo_root(Path::new("."))?;
     load_repo_config(&root)?;
     let release = release_identities()?;
@@ -37,7 +42,7 @@ pub fn run(until: Option<NaiveDate>, out: &Path) -> anyhow::Result<()> {
         .filter_map(|d| d.file_name()?.to_str().map(str::to_owned))
         .collect();
     prepare_out(out)?;
-    crate::web::write(out, &ids)?;
+    crate::web::write(out, &ids, base)?;
 
     let brand = read_optional::<Brand>(&root.join("brand/brand.yaml"), Brand::from_yaml)?;
     let logo = match brand.as_ref().and_then(|b| b.logo.as_ref()) {
@@ -46,7 +51,7 @@ pub fn run(until: Option<NaiveDate>, out: &Path) -> anyhow::Result<()> {
                 &root.join("brand").join(file),
                 &out.join("brand").join(file),
             )?;
-            Some(format!("/brand/{file}"))
+            Some(format!("brand/{file}"))
         }
         None => None,
     };
@@ -103,7 +108,7 @@ fn build_event(
     let decoration = |file: Option<&String>| -> anyhow::Result<Option<String>> {
         let Some(file) = file else { return Ok(None) };
         copy_asset(&event_dir.join(file), &site.join("theme").join(file))?;
-        Ok(Some(format!("/{id}/theme/{file}")))
+        Ok(Some(format!("{id}/theme/{file}")))
     };
     let background = decoration(theme.as_ref().and_then(|t| t.background.as_ref()))?;
     let doors = decoration(theme.as_ref().and_then(|t| t.doors.as_ref()))?;

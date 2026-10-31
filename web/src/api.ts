@@ -1,6 +1,8 @@
 /**
  * The only module that knows the site's paths. Everything here is a static
  * file written by `advent build`; unreleased days simply do not exist.
+ * Paths are relative: the browser resolves them against the page's
+ * `<base href>`, so a calendar works at a domain root or under a sub-path.
  */
 import type { SealedFinal, WordLock } from "./crypto";
 
@@ -48,22 +50,39 @@ async function fetchJson<T>(path: string): Promise<T> {
 }
 
 export const api = {
-  site: () => fetchJson<SiteIndex>("/site.json"),
-  event: (id: string) => fetchJson<EventInfo>(`/${id}/event.json`),
+  site: () => fetchJson<SiteIndex>("site.json"),
+  event: (id: string) => fetchJson<EventInfo>(`${id}/event.json`),
   day: (id: string, day: number) =>
-    fetchJson<DayPage>(`/${id}/api/day/${day}.json`),
+    fetchJson<DayPage>(`${id}/api/day/${day}.json`),
   hints: (id: string, day: number) =>
-    fetchJson<{ hints: string[] }>(`/${id}/api/day/${day}/hint.json`),
+    fetchJson<{ hints: string[] }>(`${id}/api/day/${day}/hint.json`),
   locks: (id: string, day: number) =>
-    fetchJson<{ word_locks: WordLock[] }>(`/${id}/api/day/${day}/locks.json`),
-  final: (id: string) => fetchJson<SealedFinal>(`/${id}/api/final.json`),
+    fetchJson<{ word_locks: WordLock[] }>(`${id}/api/day/${day}/locks.json`),
+  final: (id: string) => fetchJson<SealedFinal>(`${id}/api/final.json`),
 };
 
 /** URL of an image referenced from a day's markdown. */
 export function assetUrl(id: string, day: number, name: string): string {
-  return `/${id}/api/day/${day}/${name}`;
+  return `${id}/api/day/${day}/${name}`;
 }
 
 export function themeCssUrl(id?: string): string {
-  return id ? `/${id}/theme.css` : "/theme.css";
+  return id ? `${id}/theme.css` : "theme.css";
+}
+
+/** The site's base path from `<base href>`, e.g. "/" or "/demo/". */
+export function basePath(): string {
+  return new URL(document.baseURI).pathname;
+}
+
+/** The event id a location path points at, relative to the base path. */
+export function routeEventId(
+  pathname: string,
+  base = basePath(),
+): string | null {
+  const relative = pathname.startsWith(base)
+    ? pathname.slice(base.length)
+    : pathname;
+  const id = relative.split("/").filter(Boolean)[0];
+  return id ? decodeURIComponent(id) : null;
 }

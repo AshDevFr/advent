@@ -6,9 +6,10 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // Absolute asset paths: `advent build` serves the same index.html at the
-  // site root and under every /<event>/ folder.
-  base: "/",
+  // Relative asset paths, resolved against the <base href> that
+  // `advent build` writes into every index.html: the same files then work at
+  // a domain root, under a sub-path, and in every /<event>/ folder.
+  base: "./",
   resolve: {
     alias: { "@": path.resolve(import.meta.dirname, "./src") },
   },

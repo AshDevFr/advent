@@ -62,6 +62,9 @@ jobs:
         run: advent build --out dist
         env:
           ADVENT_RELEASE_KEY: ${{ secrets.ADVENT_RELEASE_KEY }}
+          # Set the variable ADVENT_BASE (e.g. /calendar/) to serve the site
+          # under a sub-path; the default is the domain root.
+          ADVENT_BASE: ${{ vars.ADVENT_BASE || '/' }}
 
       - name: Create the Pages project if missing
         run: |

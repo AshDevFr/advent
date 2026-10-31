@@ -42,7 +42,7 @@ describe("door panel", () => {
     expect(dialog.querySelector("pre")).toHaveTextContent("print('hi')");
     expect(within(dialog).getByRole("img", { name: "map" })).toHaveAttribute(
       "src",
-      "/2026/api/day/2/map.webp",
+      "2026/api/day/2/map.webp",
     );
     expect(dialog.querySelector("script")).toBeNull();
   });

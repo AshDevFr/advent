@@ -40,7 +40,7 @@ describe("landing page", () => {
     serve({ "/site.json": site([event({ opens_at: null })]) });
     render(<App path="/" />);
     const link = await screen.findByRole("link", { name: "Open the calendar" });
-    expect(link).toHaveAttribute("href", "/2026/");
+    expect(link).toHaveAttribute("href", "2026/");
   });
 
   it("explains when the site cannot be loaded", async () => {
@@ -168,5 +168,32 @@ describe("theme toggle", () => {
     await user.click(screen.getByRole("radio", { name: "System" }));
     expect(document.documentElement.dataset.theme).toBeUndefined();
     expect(localStorage.getItem("advent-theme")).toBeNull();
+  });
+});
+
+describe("base path", () => {
+  it("routes and links relative to a sub-path", async () => {
+    serve({ "/site.json": site([event({ opens_at: null })]) });
+    render(<App path="/demo/" base="/demo/" />);
+    const link = await screen.findByRole("link", { name: "Open the calendar" });
+    expect(link).toHaveAttribute("href", "2026/");
+  });
+
+  it("opens an event under a sub-path", async () => {
+    serve({ "/2026/event.json": event() });
+    render(<App path="/demo/2026/" base="/demo/" />);
+    expect(
+      await screen.findByRole("list", { name: "Calendar doors" }),
+    ).toBeInTheDocument();
+  });
+
+  it("requests site data by relative URL", async () => {
+    serve({ "/site.json": site([event({ opens_at: null })]) });
+    render(<App path="/" base="/" />);
+    await screen.findByRole("link", { name: "Open the calendar" });
+    const requested = (fetch as ReturnType<typeof vi.fn>).mock.calls.map(
+      ([url]) => String(url),
+    );
+    expect(requested.every((url) => !url.startsWith("/"))).toBe(true);
   });
 });

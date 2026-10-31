@@ -45,6 +45,10 @@ One-time setup:
    `CLOUDFLARE_ACCOUNT_ID`, and the variable `CLOUDFLARE_PAGES_PROJECT`.
 3. If your event is not in UTC, adjust the cron hours in the workflow so one
    run lands just after your local midnight.
+4. To serve the calendar under a sub-path rather than a domain root (for
+   example a GitLab or GitHub Pages project site), set the variable
+   `ADVENT_BASE` to that path, such as `/calendar/`. Locally:
+   `advent build --base /calendar/`.
 
 Before a deploy, CI checks that no plaintext is tracked and that every day
 released so far opens; days still being written do not block it.

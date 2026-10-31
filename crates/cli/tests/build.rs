@@ -177,7 +177,7 @@ fn build_writes_brand_and_theme() {
     let site: serde_json::Value =
         serde_json::from_slice(&fs::read(out.join("site.json")).unwrap()).unwrap();
     assert_eq!(site["brand"]["name"], "Advent Calendar");
-    assert_eq!(site["brand"]["logo"], "/brand/logo.svg");
+    assert_eq!(site["brand"]["logo"], "brand/logo.svg");
     assert_eq!(site["events"][0]["title"], "Advent 2026");
     assert!(out.join("brand/logo.svg").is_file());
 

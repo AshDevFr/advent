@@ -82,7 +82,8 @@ impl Repo {
         let mut cmd = advent();
         cmd.current_dir(&self.root)
             .env_remove("ADVENT_EDITORS_KEY")
-            .env_remove("ADVENT_RELEASE_KEY");
+            .env_remove("ADVENT_RELEASE_KEY")
+            .env_remove("ADVENT_BASE");
         cmd
     }
 }

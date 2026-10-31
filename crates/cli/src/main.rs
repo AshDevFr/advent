@@ -57,6 +57,10 @@ enum Command {
         /// Output folder.
         #[arg(long, default_value = "dist")]
         out: PathBuf,
+        /// Path the site is served under, e.g. /demo/ or a GitLab/GitHub Pages
+        /// project path (default: the domain root).
+        #[arg(long, env = "ADVENT_BASE", default_value = "/")]
+        base: String,
     },
     /// Print when each day opens.
     Schedule { event: Option<String> },
@@ -96,7 +100,7 @@ fn main() -> anyhow::Result<()> {
         Command::Keeper {
             command: KeeperCommand::Seal { event },
         } => commands::keeper::run(&event),
-        Command::Build { until, out } => commands::build::run(until, &out),
+        Command::Build { until, out, base } => commands::build::run(until, &out, &base),
         Command::Schedule { event } => commands::schedule::run(event.as_deref()),
         Command::Verify {
             event,

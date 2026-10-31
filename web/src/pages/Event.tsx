@@ -96,7 +96,7 @@ export function EventPage({ id }: { id: string }) {
       <header className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <a
-            href="/"
+            href="./"
             className="text-xs font-semibold tracking-widest text-muted-foreground uppercase hover:text-foreground"
           >
             {eyebrow || "All calendars"}

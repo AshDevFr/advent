@@ -26,7 +26,7 @@ pub struct SiteIndex {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SiteBrand {
     pub name: String,
-    /// Site path of the logo, e.g. `/brand/logo.svg`.
+    /// Path of the logo relative to the site root, e.g. `brand/logo.svg`.
     pub logo: Option<String>,
 }
 
@@ -53,7 +53,7 @@ pub struct EventInfo {
     pub types: BTreeMap<u32, String>,
     /// Announcements published so far, in the order of `event.yaml`.
     pub notices: Vec<SiteNotice>,
-    /// Site paths of theme decoration, if the event's theme sets them.
+    /// Paths of theme decoration relative to the site root, if any.
     pub background: Option<String>,
     pub doors: Option<String>,
 }

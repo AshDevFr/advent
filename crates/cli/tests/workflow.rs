@@ -83,6 +83,7 @@ fn workflow_uses_only_the_expected_secrets() {
         ])
     );
     assert!(references("vars").contains("CLOUDFLARE_PAGES_PROJECT"));
+    assert!(references("vars").contains("ADVENT_BASE"));
 }
 
 #[test]
