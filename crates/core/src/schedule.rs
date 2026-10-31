@@ -109,6 +109,7 @@ mod tests {
             hint_after: vec![1, 2],
             notices: Vec::new(),
             story: Default::default(),
+            attempts: None,
         }
     }
 

@@ -35,8 +35,8 @@ lint: ## Run clippy with warnings as errors
 test: ## Run tests
 	cargo test --workspace
 
-wasm: ## Check that advent-core builds for wasm32 (no tokio, no filesystem)
-	cargo build --target wasm32-unknown-unknown -p advent-core
+wasm: ## Check that advent-core and advent-server build for wasm32 (no tokio, no filesystem)
+	cargo build --target wasm32-unknown-unknown -p advent-core -p advent-server
 
 plaintext: ## Fail if plaintext puzzle content is tracked outside templates/, fixtures/ and showcases/
 	./scripts/check-plaintext.sh

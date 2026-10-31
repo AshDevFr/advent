@@ -98,6 +98,86 @@ pub struct Event {
     pub notices: Vec<Notice>,
     #[serde(default)]
     pub story: Story,
+    /// Server mode only: how many guesses a player may make per day within
+    /// a window that refills. Without it, guesses are unlimited.
+    #[serde(default)]
+    pub attempts: Option<Attempts>,
+}
+
+/// A guess limit that refills: at most `max` guesses per player and day in
+/// any window of `per`, counted from the first guess of the window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Attempts {
+    pub max: u32,
+    pub per: Window,
+}
+
+/// A length of time written as a number and a unit: `30m`, `1h`, `2d`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Window {
+    seconds: u64,
+}
+
+impl Window {
+    pub fn seconds(self) -> u64 {
+        self.seconds
+    }
+
+    pub fn duration(self) -> chrono::Duration {
+        chrono::Duration::seconds(self.seconds as i64)
+    }
+}
+
+impl std::str::FromStr for Window {
+    type Err = String;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let text = text.trim();
+        let (number, unit) = text.split_at(text.len().saturating_sub(1));
+        let scale = match unit {
+            "m" => 60,
+            "h" => 3600,
+            "d" => 86_400,
+            _ => {
+                return Err(format!(
+                    "{text:?} needs a unit: m, h or d (as in 30m, 1h, 1d)"
+                ));
+            }
+        };
+        match number.parse::<u64>() {
+            Ok(n) if n > 0 => Ok(Window { seconds: n * scale }),
+            _ => Err(format!(
+                "{text:?} must be a positive number with a unit, as in 1h"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for Window {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self.seconds;
+        if s.is_multiple_of(86_400) {
+            write!(f, "{}d", s / 86_400)
+        } else if s.is_multiple_of(3600) {
+            write!(f, "{}h", s / 3600)
+        } else {
+            write!(f, "{}m", s / 60)
+        }
+    }
+}
+
+impl Serialize for Window {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.collect_str(self)
+    }
+}
+
+impl<'de> Deserialize<'de> for Window {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let text = String::deserialize(d)?;
+        text.parse().map_err(serde::de::Error::custom)
+    }
 }
 
 /// An announcement on the calendar page. With `day` it appears once that
@@ -147,6 +227,12 @@ impl Event {
         }
         event.validate_schedule()?;
         event.validate_notices()?;
+        if event.attempts.is_some_and(|a| a.max == 0) {
+            return Err(invalid(
+                "attempts",
+                "`max` must be at least 1 (remove `attempts` for no limit)",
+            ));
+        }
         if event.unlocked > event.days {
             return Err(invalid(
                 "unlocked",
@@ -500,6 +586,33 @@ pub fn resolve_scheme(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn event_attempts_parse_and_validate() {
+        let base = "title: T\ntimezone: UTC\nstart: 2026-12-01\n";
+        assert_eq!(Event::from_yaml(base).unwrap().attempts, None);
+
+        let event = Event::from_yaml(&format!("{base}attempts:\n  max: 10\n  per: 1h\n")).unwrap();
+        let attempts = event.attempts.unwrap();
+        assert_eq!(attempts.max, 10);
+        assert_eq!(attempts.per.seconds(), 3600);
+        assert_eq!(attempts.per.to_string(), "1h");
+        assert_eq!("30m".parse::<Window>().unwrap().seconds(), 1800);
+        assert_eq!("2d".parse::<Window>().unwrap().to_string(), "2d");
+
+        let zero = Event::from_yaml(&format!("{base}attempts: {{ max: 0, per: 1h }}\n"));
+        assert!(matches!(
+            zero,
+            Err(ModelError::Invalid {
+                field: "attempts",
+                ..
+            })
+        ));
+        for per in ["1", "0h", "1w", "h", "-1h"] {
+            let bad = Event::from_yaml(&format!("{base}attempts: {{ max: 3, per: \"{per}\" }}\n"));
+            assert!(bad.is_err(), "{per} should be refused");
+        }
+    }
 
     #[test]
     fn model_parses_each_file_type() {

@@ -9,8 +9,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use advent_core::model::{
-    Brand, DayMeta, Event, FinalPayload, Hint, ImagePosition, Keys, Notice, Palettes, RepoConfig,
-    RewardSpec, Story, Theme,
+    Attempts, Brand, DayMeta, Event, FinalPayload, Hint, ImagePosition, Keys, Notice, Palettes,
+    RepoConfig, RewardSpec, Story, Theme,
 };
 use serde::Serialize;
 
@@ -116,6 +116,10 @@ fn reference_documents_event_yaml() {
             title: Some("t".into()),
             intro: Some("i".into()),
         },
+        attempts: Some(Attempts {
+            max: 10,
+            per: "1h".parse().unwrap(),
+        }),
     };
     assert_documented("event-yaml.md", fields(&event));
 }

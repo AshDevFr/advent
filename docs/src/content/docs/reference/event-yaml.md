@@ -113,3 +113,27 @@ A display headline (for example "The Longest Night Hunt"). With it, the event `t
 **Type** string · **Optional** · Under `story`
 
 The paragraph under the headline, also shown on the landing page.
+
+### `attempts`
+
+**Type** object · **Optional** · **Default** no limit
+
+Company edition (server mode) only; the static site ignores it. Limits how many guesses each player can make on a day, in a window that refills, so a player who runs out only has to wait:
+
+```yaml
+attempts:
+  max: 10
+  per: 1h
+```
+
+### `max`
+
+**Type** integer ≥ 1 · **Required** · Under `attempts`
+
+Guesses allowed per player and day in one window.
+
+### `per`
+
+**Type** duration (`30m`, `1h`, `1d`) · **Required** · Under `attempts`
+
+Length of the window, counted from the first guess in it. Once it ends, the player can guess again.

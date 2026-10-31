@@ -1,0 +1,22 @@
+[package]
+name = "advent-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Server logic for advent's company edition: players, sign-in, guesses, stats; runtime-independent"
+repository.workspace = true
+
+# Like advent-core, this crate must build for wasm32-unknown-unknown so a
+# Cloudflare Worker can reuse it: no tokio, no filesystem, no system clock or
+# randomness (callers pass `now` and an entropy source in).
+[dependencies]
+advent-core.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
+sha2 = "0.11"
+base64 = "0.22"
+
+[dev-dependencies]
+pollster = "0.4"
