@@ -3,6 +3,7 @@
 //! sealed word locks, and keeps their progress in SQLite. The logic lives
 //! in `advent-server`; this module is the axum, SQLite and tokio adapter.
 
+mod admin;
 mod api;
 pub mod config;
 mod content;
@@ -97,6 +98,7 @@ pub struct AppState {
     pub clock: ServeClock,
     pub limiter: Limiter,
     pub mailer: mail::Sender,
+    pub jobs: admin::Jobs,
     content: RwLock<Arc<Content>>,
 }
 
@@ -152,8 +154,12 @@ pub fn run(args: Args) -> anyhow::Result<()> {
                 limits.links_per_hour,
                 Duration::from_secs(3600),
             ),
+            // Guessing the master password: five tries per address every
+            // quarter of an hour.
+            (Kind::AdminLogin, 5, Duration::from_secs(15 * 60)),
         ]),
         mailer,
+        jobs: Default::default(),
         checker: PoolChecker {
             permits: Semaphore::new(limits.concurrent_checks),
         },

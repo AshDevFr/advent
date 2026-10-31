@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 import { basePath, routeEventId } from "@/api";
 import { hostingMode } from "@/client";
@@ -8,8 +8,24 @@ import { Landing, Message } from "@/pages/Landing";
 import { SignIn } from "@/pages/SignIn";
 import { SignInLink } from "@/pages/SignInLink";
 
+// Only organisers open it: kept out of the players' bundle.
+const AdminApp = lazy(() => import("@/admin/AdminApp"));
+
+/** Whether a path is in the admin section, `<base>/admin/...`. */
+export function isAdminPath(path: string, base = basePath()): boolean {
+  const relative = path.startsWith(base) ? path.slice(base.length) : path;
+  return relative.split("/").filter(Boolean)[0] === "admin";
+}
+
 /** The base path is the landing page; `<base>/<event>/` is that event. */
 export function App({ path, base }: { path?: string; base?: string }) {
+  const current = path ?? window.location.pathname;
+  if (isAdminPath(current, base))
+    return (
+      <Suspense fallback={<Message text="Loading…" />}>
+        <AdminApp path={current} base={base} />
+      </Suspense>
+    );
   if (hostingMode() === "server") return <ServerApp path={path} base={base} />;
   return <Calendar path={path ?? window.location.pathname} base={base} />;
 }

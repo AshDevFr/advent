@@ -8,6 +8,7 @@
 //! are thin adapters over the same code. The crate builds for
 //! wasm32-unknown-unknown for that reason.
 
+pub mod admin;
 pub mod content;
 pub mod guess;
 pub mod mail;

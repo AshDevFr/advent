@@ -31,6 +31,24 @@ pub struct ServerConfig {
     pub trust_proxy: bool,
     pub limits: Limits,
     pub mail: MailConfig,
+    pub admin: AdminConfig,
+}
+
+/// How organisers sign in to the admin section.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AdminConfig {
+    pub auth: AdminAuth,
+    /// The master password, from `ADVENT_ADMIN__PASSWORD`.
+    pub password: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AdminAuth {
+    /// One shared password, no admin accounts.
+    #[default]
+    Password,
 }
 
 /// How emails are sent.
@@ -149,6 +167,7 @@ impl Default for ServerConfig {
             trust_proxy: false,
             limits: Limits::default(),
             mail: MailConfig::default(),
+            admin: AdminConfig::default(),
         }
     }
 }
@@ -189,6 +208,13 @@ impl ServerConfig {
             anyhow::bail!("`limits.concurrent_checks` must be at least 1");
         }
         config.check_mail()?;
+        if config.admin.auth == AdminAuth::Password
+            && config.admin.password.as_deref().is_none_or(str::is_empty)
+        {
+            anyhow::bail!(
+                "`admin.password` is required with `admin.auth: password`: set ADVENT_ADMIN__PASSWORD"
+            );
+        }
         Ok(config)
     }
 }
@@ -239,6 +265,7 @@ mod tests {
     #[test]
     fn serve_config_layers_file_env_and_flags() {
         Jail::expect_with(|jail| {
+            jail.set_env("ADVENT_ADMIN__PASSWORD", "admin");
             jail.create_file(
                 "server.yaml",
                 "listen: 127.0.0.1:9000\npublic_url: https://advent.acme.com\nlimits:\n  guesses_per_minute: 3\n",
@@ -277,6 +304,7 @@ mod tests {
     #[test]
     fn serve_config_mail_needs_its_details() {
         Jail::expect_with(|jail| {
+            jail.set_env("ADVENT_ADMIN__PASSWORD", "admin");
             jail.set_env("ADVENT_MAIL__SENDER", "smtp");
             let err = ServerConfig::load(None, &Overrides::default()).unwrap_err();
             assert!(format!("{err:#}").contains("public_url"), "{err:#}");
@@ -294,6 +322,21 @@ mod tests {
             jail.set_env("ADVENT_MAIL__SENDER", "resend");
             let err = ServerConfig::load(None, &Overrides::default()).unwrap_err();
             assert!(format!("{err:#}").contains("api_key"), "{err:#}");
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn serve_config_password_mode_needs_a_password() {
+        Jail::expect_with(|jail| {
+            let err = ServerConfig::load(None, &Overrides::default()).unwrap_err();
+            assert!(
+                format!("{err:#}").contains("ADVENT_ADMIN__PASSWORD"),
+                "{err:#}"
+            );
+            jail.set_env("ADVENT_ADMIN__PASSWORD", "s3cret");
+            let config = ServerConfig::load(None, &Overrides::default()).unwrap();
+            assert_eq!(config.admin.password.as_deref(), Some("s3cret"));
             Ok(())
         });
     }

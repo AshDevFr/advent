@@ -10,6 +10,8 @@ use serde_json::{Value, json};
 
 use super::Repo;
 
+pub const ADMIN_PASSWORD: &str = "admin-test-password";
+
 pub struct Server {
     pub child: Child,
     pub url: String,
@@ -33,6 +35,7 @@ pub fn command(repo: &Repo, now: &str, data: &Path) -> Command {
         .env("ADVENT_RELEASE_KEY", &repo.release_secret)
         .env("ADVENT_SERVE_NOW", now)
         .env("ADVENT_INSECURE_COOKIES", "true")
+        .env("ADVENT_ADMIN__PASSWORD", ADMIN_PASSWORD)
         .env_remove("ADVENT_EDITORS_KEY")
         .env_remove("ADVENT_BASE");
     cmd
@@ -95,8 +98,7 @@ impl Server {
     }
 
     pub fn signed_in(&self, link: &str) -> Client {
-        install_crypto();
-        let client = Client::builder().cookie_store(true).build().unwrap();
+        let client = cookie_client();
         let response = self.post(&client, "/api/signin", json!({ "link": link }));
         assert_eq!(response.status(), StatusCode::OK);
         let cookie = response
@@ -114,6 +116,12 @@ impl Server {
 pub fn client() -> Client {
     install_crypto();
     Client::new()
+}
+
+/// A client that keeps cookies, like a browser.
+pub fn cookie_client() -> Client {
+    install_crypto();
+    Client::builder().cookie_store(true).build().unwrap()
 }
 
 /// reqwest is built without a bundled TLS provider (the server picks

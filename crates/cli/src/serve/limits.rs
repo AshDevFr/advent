@@ -13,6 +13,8 @@ pub enum Kind {
     SignIn,
     /// Sign-in links sent to one email address.
     LinkEmail,
+    /// Admin password attempts.
+    AdminLogin,
 }
 
 /// Entries kept before expired windows are swept.

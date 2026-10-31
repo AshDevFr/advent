@@ -4,6 +4,8 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
+use chrono::{DateTime, Utc};
+
 use crate::store::{DayState, Player, Session, Store, StoreResult};
 
 #[derive(Default)]
@@ -11,6 +13,7 @@ struct Inner {
     players: BTreeMap<String, Player>,
     sessions: BTreeMap<String, Session>,
     days: BTreeMap<(String, String, u32), DayState>,
+    admin_sessions: BTreeMap<String, DateTime<Utc>>,
 }
 
 #[derive(Default)]
@@ -79,6 +82,22 @@ impl Store for MemoryStore {
 
     async fn remove_sessions(&self, email: &str) -> StoreResult<()> {
         self.lock().sessions.retain(|_, s| s.email != email);
+        Ok(())
+    }
+
+    async fn admin_session(&self, id_hash: &str) -> StoreResult<Option<DateTime<Utc>>> {
+        Ok(self.lock().admin_sessions.get(id_hash).copied())
+    }
+
+    async fn put_admin_session(&self, id_hash: &str, expires_at: DateTime<Utc>) -> StoreResult<()> {
+        self.lock()
+            .admin_sessions
+            .insert(id_hash.to_string(), expires_at);
+        Ok(())
+    }
+
+    async fn remove_admin_session(&self, id_hash: &str) -> StoreResult<()> {
+        self.lock().admin_sessions.remove(id_hash);
         Ok(())
     }
 

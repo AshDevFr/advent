@@ -92,6 +92,21 @@ pub trait Store: MaybeSend + MaybeSync {
     /// End every session of a player.
     fn remove_sessions(&self, email: &str) -> impl Future<Output = StoreResult<()>> + MaybeSend;
 
+    /// When an admin session (by hash) expires, if it exists.
+    fn admin_session(
+        &self,
+        id_hash: &str,
+    ) -> impl Future<Output = StoreResult<Option<DateTime<Utc>>>> + MaybeSend;
+    fn put_admin_session(
+        &self,
+        id_hash: &str,
+        expires_at: DateTime<Utc>,
+    ) -> impl Future<Output = StoreResult<()>> + MaybeSend;
+    fn remove_admin_session(
+        &self,
+        id_hash: &str,
+    ) -> impl Future<Output = StoreResult<()>> + MaybeSend;
+
     fn day_state(
         &self,
         email: &str,

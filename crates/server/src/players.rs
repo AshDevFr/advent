@@ -16,13 +16,13 @@ pub const MAX_NAME: usize = 80;
 const SEEN_GRANULARITY: Duration = Duration::minutes(5);
 
 /// One line of an invite list.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Invite {
     pub email: String,
     pub name: Option<String>,
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, serde::Serialize)]
 pub struct ImportReport {
     /// Normalized emails of new players.
     pub created: Vec<String>,

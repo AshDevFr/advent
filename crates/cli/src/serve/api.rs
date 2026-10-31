@@ -34,6 +34,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/signin/request", post(request_link))
         .route("/api/signin/{link}", get(link_owner))
         .route("/signin/{link}", get(app_page))
+        .route("/admin", get(app_page))
+        .route("/admin/", get(app_page))
+        .route("/admin/{*rest}", get(app_page))
+        .merge(super::admin::routes())
         .route("/api/signout", post(sign_out))
         .route("/api/name", put(set_name))
         .route("/api/events/{event}/progress", get(progress))
@@ -48,7 +52,7 @@ pub fn router(state: Arc<AppState>) -> Router {
 }
 
 /// An API failure: a status and a message for the player.
-pub struct ApiError(StatusCode, String);
+pub struct ApiError(pub StatusCode, pub String);
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
@@ -74,11 +78,11 @@ impl From<ServerError> for ApiError {
     }
 }
 
-type ApiResult<T> = Result<T, ApiError>;
+pub type ApiResult<T> = Result<T, ApiError>;
 
 /// The client's address: the connection's, or with `trust_proxy` the last
 /// `X-Forwarded-For` entry (the one the proxy itself added).
-fn client_ip(state: &AppState, headers: &HeaderMap, peer: SocketAddr) -> IpAddr {
+pub(super) fn client_ip(state: &AppState, headers: &HeaderMap, peer: SocketAddr) -> IpAddr {
     if state.config.trust_proxy
         && let Some(ip) = headers
             .get("x-forwarded-for")
@@ -91,7 +95,7 @@ fn client_ip(state: &AppState, headers: &HeaderMap, peer: SocketAddr) -> IpAddr 
     peer.ip()
 }
 
-fn check_limit(state: &AppState, kind: Kind, key: impl ToString) -> ApiResult<()> {
+pub(super) fn check_limit(state: &AppState, kind: Kind, key: impl ToString) -> ApiResult<()> {
     state
         .limiter
         .check(kind, &key.to_string(), Instant::now())
@@ -119,15 +123,20 @@ async fn limit_requests(
     }
 }
 
-fn session_token(headers: &HeaderMap) -> Option<String> {
+/// A cookie's value from the request.
+pub(super) fn cookie_value(headers: &HeaderMap, name: &str) -> Option<String> {
     headers
         .get_all(header::COOKIE)
         .iter()
         .filter_map(|v| v.to_str().ok())
         .flat_map(|v| v.split(';'))
         .filter_map(|pair| pair.trim().split_once('='))
-        .find(|(name, _)| *name == SESSION_COOKIE)
+        .find(|(n, _)| *n == name)
         .map(|(_, value)| value.to_string())
+}
+
+fn session_token(headers: &HeaderMap) -> Option<String> {
+    cookie_value(headers, SESSION_COOKIE)
 }
 
 async fn signed_in(state: &AppState, headers: &HeaderMap) -> ApiResult<Player> {

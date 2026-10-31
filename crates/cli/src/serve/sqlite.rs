@@ -10,11 +10,13 @@ use std::sync::{Arc, Mutex};
 
 use advent_server::store::StoreResult;
 use advent_server::{DayState, Player, Session, Solved, Store, StoreError};
+use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
 /// Schema steps, applied in order; `PRAGMA user_version` records how many
 /// ran. Append only: a released step never changes.
-const MIGRATIONS: &[&str] = &["
+const MIGRATIONS: &[&str] = &[
+    "
     CREATE TABLE players (
         email TEXT PRIMARY KEY,
         display_email TEXT NOT NULL,
@@ -43,7 +45,14 @@ const MIGRATIONS: &[&str] = &["
         PRIMARY KEY (email, event, day)
     );
     CREATE INDEX days_event ON days(event);
-"];
+",
+    "
+    CREATE TABLE admin_sessions (
+        id_hash TEXT PRIMARY KEY,
+        expires_at TEXT NOT NULL
+    );
+",
+];
 
 #[derive(Clone)]
 pub struct SqliteStore {
@@ -260,6 +269,40 @@ impl Store for SqliteStore {
         .await
     }
 
+    async fn admin_session(&self, id_hash: &str) -> StoreResult<Option<DateTime<Utc>>> {
+        let id_hash = id_hash.to_string();
+        self.call(move |c| {
+            c.query_row(
+                "SELECT expires_at FROM admin_sessions WHERE id_hash = ?1",
+                [id_hash],
+                |r| r.get(0),
+            )
+            .optional()
+        })
+        .await
+    }
+
+    async fn put_admin_session(&self, id_hash: &str, expires_at: DateTime<Utc>) -> StoreResult<()> {
+        let id_hash = id_hash.to_string();
+        self.call(move |c| {
+            c.execute(
+                "INSERT OR REPLACE INTO admin_sessions (id_hash, expires_at) VALUES (?1, ?2)",
+                params![id_hash, expires_at],
+            )
+            .map(drop)
+        })
+        .await
+    }
+
+    async fn remove_admin_session(&self, id_hash: &str) -> StoreResult<()> {
+        let id_hash = id_hash.to_string();
+        self.call(move |c| {
+            c.execute("DELETE FROM admin_sessions WHERE id_hash = ?1", [id_hash])
+                .map(drop)
+        })
+        .await
+    }
+
     async fn day_state(&self, email: &str, event: &str, day: u32) -> StoreResult<Option<DayState>> {
         let (email, event) = (email.to_string(), event.to_string());
         self.call(move |c| {
@@ -333,7 +376,6 @@ impl Store for SqliteStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{DateTime, Utc};
 
     fn at(text: &str) -> DateTime<Utc> {
         text.parse().unwrap()
