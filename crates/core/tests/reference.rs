@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use advent_core::model::{
     Attempts, Brand, DayMeta, DoorArt, Event, FinalPayload, Hint, ImagePosition, Keys, Notice,
-    Palettes, RepoConfig, RewardSpec, Story, Theme,
+    Palettes, RepoConfig, RewardSpec, SchemeImage, Story, Theme,
 };
 use serde::Serialize;
 
@@ -79,7 +79,7 @@ fn reference_documents_advent_yaml() {
 fn reference_documents_brand_yaml() {
     let brand = Brand {
         name: "n".into(),
-        logo: Some("logo.svg".into()),
+        logo: Some(SchemeImage::One("logo.svg".into())),
         palette: palettes(),
     };
     assert_documented("brand-yaml.md", fields(&brand));
@@ -89,7 +89,7 @@ fn reference_documents_brand_yaml() {
 fn reference_documents_theme_yaml() {
     let theme = Theme {
         palette: palettes(),
-        background: Some("bg.webp".into()),
+        background: Some(SchemeImage::One("bg.webp".into())),
         doors: Some(DoorArt::One("doors.webp".into())),
     };
     assert_documented("theme-yaml.md", fields(&theme));

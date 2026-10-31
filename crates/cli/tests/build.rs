@@ -165,6 +165,41 @@ fn build_is_identical_for_the_same_date() {
 }
 
 #[test]
+fn build_publishes_a_logo_and_background_for_each_scheme() {
+    let repo = sample_event();
+    let brand = repo.root.join("brand");
+    fs::copy(brand.join("logo.svg"), brand.join("logo-dark.svg")).unwrap();
+    let yaml = fs::read_to_string(brand.join("brand.yaml"))
+        .unwrap()
+        .replace(
+            "logo: logo.svg",
+            "logo:\n  light: logo.svg\n  dark: logo-dark.svg",
+        );
+    fs::write(brand.join("brand.yaml"), yaml).unwrap();
+    for file in ["day.png", "night.png"] {
+        fs::copy(
+            repo.root.join("examples/day06/hidden.png"),
+            repo.event_dir().join(file),
+        )
+        .unwrap();
+    }
+    fs::write(
+        repo.event_dir().join("theme.yaml"),
+        "background:\n  light: day.png\n  dark: night.png\n",
+    )
+    .unwrap();
+    let out = build(&repo, "2026-12-03", "dist");
+    let site: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("site.json")).unwrap()).unwrap();
+    assert_eq!(site["brand"]["logo"], "brand/logo.svg");
+    assert_eq!(site["brand"]["logo_dark"], "brand/logo-dark.svg");
+    assert!(out.join("brand/logo-dark.svg").is_file());
+    assert_eq!(site["events"][0]["background"], "2026/theme/day.png");
+    assert_eq!(site["events"][0]["background_dark"], "2026/theme/night.png");
+    assert!(out.join("2026/theme/night.png").is_file());
+}
+
+#[test]
 fn build_publishes_a_list_of_door_artwork_in_order() {
     let repo = sample_event();
     for file in ["a.png", "b.png"] {

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import {
   api,
   type EventInfo,
@@ -10,6 +9,7 @@ import {
 import { BrowserTab } from "@/BrowserTab";
 import { CertificatePanel } from "@/certificate/Certificate";
 import { client, useEventProgress } from "@/client";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Countdown } from "@/components/Countdown";
 import { type Door, DoorGrid } from "@/components/DoorGrid";
 import { KeyStrip } from "@/components/KeyStrip";
@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { DoorPanel } from "@/door/DoorPanel";
 import { Progress } from "@/door/Progress";
+import { cn } from "@/lib/utils";
 import { Notices } from "@/notices/Notices";
 import { useThemeCss } from "@/useThemeCss";
 import { Message } from "./Landing";
@@ -35,14 +36,24 @@ export function shortDate(isoDate: string): string {
  * The theme's background image, fixed behind the page under a wash of the
  * page colour so text stays readable in light and dark mode.
  */
-function Backdrop({ image }: { image: string }) {
+function Backdrop({ image, dark }: { image: string; dark?: string | null }) {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
       <div
         data-testid="backdrop"
-        className="absolute inset-0 bg-cover bg-center"
+        className={cn(
+          "absolute inset-0 bg-cover bg-center",
+          dark && "when-light",
+        )}
         style={{ backgroundImage: `url("${image}")` }}
       />
+      {dark && (
+        <div
+          data-testid="backdrop"
+          className="when-dark absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url("${dark}")` }}
+        />
+      )}
       <div className="absolute inset-0 bg-background/78" />
     </div>
   );
@@ -121,7 +132,9 @@ export function EventPage({ id }: { id: string }) {
   return (
     <main className="mx-auto flex min-h-svh max-w-6xl flex-col gap-8 px-4 py-6 sm:px-8 sm:py-10">
       <BrowserTab title={tabTitle} icon={brand?.logo} />
-      {event.background && <Backdrop image={event.background} />}
+      {event.background && (
+        <Backdrop image={event.background} dark={event.background_dark} />
+      )}
       <header className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <a
@@ -129,7 +142,11 @@ export function EventPage({ id }: { id: string }) {
             className="flex items-center gap-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase hover:text-foreground"
           >
             {brand?.logo && (
-              <img src={brand.logo} alt="" className="size-8 shrink-0" />
+              <BrandLogo
+                logo={brand.logo}
+                dark={brand.logo_dark}
+                className="size-8 shrink-0"
+              />
             )}
             {eyebrow || "All calendars"}
           </a>

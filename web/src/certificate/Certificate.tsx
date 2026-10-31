@@ -145,6 +145,13 @@ export function wrap(text: string, width: number): string[] {
  * loads nothing external), and PNG rather than SVG: Safari shows a nested
  * SVG data URL inside an SVG as a broken image.
  */
+/** Whether the page shows its dark colours, by the rules of theme.css. */
+function pageIsDark(): boolean {
+  const choice = document.documentElement.dataset.theme;
+  if (choice) return choice === "dark";
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+}
+
 async function logoAsPng(path: string, size = 160): Promise<string | null> {
   try {
     const blob = await (await fetch(path)).blob();
@@ -185,9 +192,13 @@ export function CertificateView({
   useEffect(() => {
     api
       .site()
-      .then(async (site) =>
-        setLogo(site.brand.logo ? await logoAsPng(site.brand.logo) : null),
-      )
+      .then(async (site) => {
+        // The certificate takes the page's colours, so it takes the logo
+        // drawn for them too.
+        const file =
+          (pageIsDark() && site.brand.logo_dark) || site.brand.logo || null;
+        setLogo(file ? await logoAsPng(file) : null);
+      })
       .catch(() => {});
   }, []);
 

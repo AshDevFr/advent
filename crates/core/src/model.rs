@@ -506,7 +506,7 @@ impl FinalPayload {
 #[serde(deny_unknown_fields)]
 pub struct Brand {
     pub name: String,
-    pub logo: Option<String>,
+    pub logo: Option<SchemeImage>,
     #[serde(default)]
     pub palette: Palettes,
 }
@@ -546,10 +546,40 @@ pub struct Theme {
     #[serde(default)]
     pub palette: Palettes,
     /// Image shown behind the calendar, next to `theme.yaml`.
-    pub background: Option<String>,
+    pub background: Option<SchemeImage>,
     /// Artwork shown on locked doors, next to `theme.yaml`: one file for
     /// every door, or a list that the doors take in turn.
     pub doors: Option<DoorArt>,
+}
+
+/// An image that may differ by colour scheme: one file for both, or a file
+/// each, since a logo drawn for a light page can vanish on a dark one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SchemeImage {
+    One(String),
+    #[serde(rename_all = "lowercase")]
+    PerScheme {
+        light: String,
+        dark: String,
+    },
+}
+
+impl SchemeImage {
+    /// The file for light pages, and for dark ones when there is no other.
+    pub fn light(&self) -> &str {
+        match self {
+            SchemeImage::One(file) | SchemeImage::PerScheme { light: file, .. } => file,
+        }
+    }
+
+    /// The file for dark pages, if it differs.
+    pub fn dark(&self) -> Option<&str> {
+        match self {
+            SchemeImage::One(_) => None,
+            SchemeImage::PerScheme { dark, .. } => Some(dark),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -665,7 +695,24 @@ mod tests {
         assert_eq!(brand.palette.dark["primary"], "#8cf");
 
         let theme = Theme::from_yaml("background: stars.webp\n").unwrap();
-        assert_eq!(theme.background.as_deref(), Some("stars.webp"));
+        assert_eq!(theme.background.unwrap().light(), "stars.webp");
+    }
+
+    #[test]
+    fn model_logo_and_background_take_one_file_or_one_per_scheme() {
+        let brand = Brand::from_yaml("name: A\nlogo: logo.svg\n").unwrap();
+        let logo = brand.logo.unwrap();
+        assert_eq!((logo.light(), logo.dark()), ("logo.svg", None));
+
+        let brand =
+            Brand::from_yaml("name: A\nlogo:\n  light: day.svg\n  dark: night.svg\n").unwrap();
+        let logo = brand.logo.unwrap();
+        assert_eq!((logo.light(), logo.dark()), ("day.svg", Some("night.svg")));
+
+        let theme =
+            Theme::from_yaml("background:\n  light: snow.png\n  dark: night.png\n").unwrap();
+        assert_eq!(theme.background.unwrap().dark(), Some("night.png"));
+        assert!(Brand::from_yaml("name: A\nlogo:\n  light: day.svg\n").is_err());
     }
 
     #[test]

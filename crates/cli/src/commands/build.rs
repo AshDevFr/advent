@@ -118,16 +118,17 @@ pub fn build_site(root: &Path, out: &Path, options: &Options) -> anyhow::Result<
     }
 
     let brand = read_optional::<Brand>(&root.join("brand/brand.yaml"), Brand::from_yaml)?;
-    let logo = match brand.as_ref().and_then(|b| b.logo.as_ref()) {
-        Some(file) => {
-            copy_asset(
-                &root.join("brand").join(file),
-                &out.join("brand").join(file),
-            )?;
-            Some(format!("brand/{file}"))
-        }
-        None => None,
+    let brand_asset = |file: Option<&str>| -> anyhow::Result<Option<String>> {
+        let Some(file) = file else { return Ok(None) };
+        copy_asset(
+            &root.join("brand").join(file),
+            &out.join("brand").join(file),
+        )?;
+        Ok(Some(format!("brand/{file}")))
     };
+    let logo_image = brand.as_ref().and_then(|b| b.logo.as_ref());
+    let logo = brand_asset(logo_image.map(|l| l.light()))?;
+    let logo_dark = brand_asset(logo_image.and_then(|l| l.dark()))?;
     let mut site_css = theme_css(brand.as_ref(), None)?;
 
     let mut events = Vec::new();
@@ -150,6 +151,7 @@ pub fn build_site(root: &Path, out: &Path, options: &Options) -> anyhow::Result<
                 .as_ref()
                 .map_or("Advent calendar".into(), |b| b.name.clone()),
             logo,
+            logo_dark,
         },
         events,
         mode: options.server.then(|| "server".to_string()),
@@ -182,15 +184,17 @@ fn build_event(
 
     let theme = read_optional::<Theme>(&event_dir.join("theme.yaml"), Theme::from_yaml)?;
     fs::write(site.join("theme.css"), theme_css(brand, theme.as_ref())?)?;
-    let decoration = |file: Option<&String>| -> anyhow::Result<Option<String>> {
+    let decoration = |file: Option<&str>| -> anyhow::Result<Option<String>> {
         let Some(file) = file else { return Ok(None) };
         copy_asset(&event_dir.join(file), &site.join("theme").join(file))?;
         Ok(Some(format!("{id}/theme/{file}")))
     };
-    let background = decoration(theme.as_ref().and_then(|t| t.background.as_ref()))?;
+    let background_image = theme.as_ref().and_then(|t| t.background.as_ref());
+    let background = decoration(background_image.map(|b| b.light()))?;
+    let background_dark = decoration(background_image.and_then(|b| b.dark()))?;
     let mut doors = Vec::new();
     for file in theme.as_ref().map(Theme::door_files).unwrap_or_default() {
-        doors.extend(decoration(Some(&file.to_string()))?);
+        doors.extend(decoration(Some(file))?);
     }
 
     let mut released = Vec::new();
@@ -271,6 +275,7 @@ fn build_event(
             .map(|notice| SiteNotice::new(&notice.text))
             .collect(),
         background,
+        background_dark,
         doors,
     };
     write_json(&site.join("event.json"), &info)?;

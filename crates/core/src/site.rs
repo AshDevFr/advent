@@ -32,6 +32,9 @@ pub struct SiteBrand {
     pub name: String,
     /// Path of the logo relative to the site root, e.g. `brand/logo.svg`.
     pub logo: Option<String>,
+    /// The logo for dark pages, when the brand has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logo_dark: Option<String>,
 }
 
 /// One event, in `/site.json` and as `/<event>/event.json`.
@@ -59,6 +62,9 @@ pub struct EventInfo {
     pub notices: Vec<SiteNotice>,
     /// Paths of theme decoration relative to the site root, if any.
     pub background: Option<String>,
+    /// The background for dark pages, when the theme has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_dark: Option<String>,
     /// Door artwork, in order; door N uses entry (N - 1) modulo the count.
     #[serde(default)]
     pub doors: Vec<String>,

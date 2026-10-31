@@ -71,6 +71,26 @@
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
+/* Images with a version per scheme: the light one shows unless the page is
+   dark, following the same rules as the colour tokens above. */
+.when-dark {
+  display: none !important;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .when-light {
+    display: none !important;
+  }
+  :root:not([data-theme="light"]) .when-dark {
+    display: revert !important;
+  }
+}
+:root[data-theme="dark"] .when-light {
+  display: none !important;
+}
+:root[data-theme="dark"] .when-dark {
+  display: revert !important;
+}
+
 @layer base {
   * {
     @apply border-border;

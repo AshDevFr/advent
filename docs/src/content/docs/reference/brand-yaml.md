@@ -25,9 +25,15 @@ Shown on the landing page, in the event page's eyebrow and on the certificate.
 
 ### `logo`
 
-**Type** file name · **Optional**
+**Type** file name, or `light` and `dark` file names · **Optional**
 
-An image next to `brand.yaml` (SVG or PNG), shown on the landing page and the certificate.
+An image next to `brand.yaml` (SVG or PNG), shown on the landing page, at the top of each calendar and on the certificate. A logo drawn for a light page can disappear on a dark one, so you can give one per scheme; each page shows the one for the colours it is in:
+
+```yaml
+logo:
+  light: logo.svg
+  dark: logo-dark.svg
+```
 
 ### `palette`
 

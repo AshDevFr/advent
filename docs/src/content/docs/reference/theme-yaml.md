@@ -37,9 +37,9 @@ This edition's dark colours; missing keys keep the brand's dark ones (then the e
 
 ### `background`
 
-**Type** file name · **Optional**
+**Type** file name, or `light` and `dark` file names · **Optional**
 
-An image next to `theme.yaml`, shown behind the whole calendar under a wash of the page colour so text stays readable in light and dark mode, and behind this event's card on the landing page. A soft texture or illustration works best; SVG, PNG or WebP.
+An image next to `theme.yaml`, or one per scheme as for the brand's [`logo`](/reference/brand-yaml/#logo), shown behind the whole calendar under a wash of the page colour so text stays readable in light and dark mode, and behind this event's card on the landing page. A soft texture or illustration works best; SVG, PNG or WebP.
 
 ### `doors`
 

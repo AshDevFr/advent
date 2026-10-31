@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 
 import { api, type SiteIndex, themeCssUrl } from "@/api";
 import { BrowserTab } from "@/BrowserTab";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Countdown } from "@/components/Countdown";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useThemeCss } from "@/useThemeCss";
 
 /** `/`: who runs the calendar, its events, and a countdown to the next. */
@@ -30,7 +32,11 @@ export function Landing() {
       <header className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           {site.brand.logo && (
-            <img src={site.brand.logo} alt="" className="size-12" />
+            <BrandLogo
+              logo={site.brand.logo}
+              dark={site.brand.logo_dark}
+              className="size-12"
+            />
           )}
           <h1 className="font-display text-4xl font-semibold tracking-tight">
             {site.brand.name}
@@ -55,9 +61,20 @@ export function Landing() {
               <div aria-hidden="true" className="absolute inset-0 -z-10">
                 <div
                   data-testid="card-backdrop"
-                  className="absolute inset-0 bg-cover bg-center"
+                  className={cn(
+                    "absolute inset-0 bg-cover bg-center",
+                    event.background_dark && "when-light",
+                  )}
                   style={{ backgroundImage: `url("${event.background}")` }}
                 />
+                {event.background_dark && (
+                  <div
+                    className="when-dark absolute inset-0 bg-cover bg-center"
+                    style={{
+                      backgroundImage: `url("${event.background_dark}")`,
+                    }}
+                  />
+                )}
                 <div className="absolute inset-0 bg-card/80" />
               </div>
             )}

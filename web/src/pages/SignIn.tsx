@@ -8,6 +8,7 @@ import {
 
 import { api, type SiteIndex, themeCssUrl } from "@/api";
 import { BrowserTab } from "@/BrowserTab";
+import { BrandLogo } from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useThemeCss } from "@/useThemeCss";
@@ -27,7 +28,13 @@ export function SignInFrame({ children }: { children: ReactNode }) {
       <BrowserTab title={brand?.name ?? ""} icon={brand?.logo} />
       <header className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          {brand?.logo && <img src={brand.logo} alt="" className="size-10" />}
+          {brand?.logo && (
+            <BrandLogo
+              logo={brand.logo}
+              dark={brand.logo_dark}
+              className="size-10"
+            />
+          )}
           <h1 className="font-display text-3xl font-semibold tracking-tight">
             {brand?.name ?? "Advent calendar"}
           </h1>

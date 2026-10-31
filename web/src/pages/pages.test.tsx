@@ -261,6 +261,34 @@ describe("branding on the calendar", () => {
     expect(day4.style.backgroundImage).toContain("55%");
   });
 
+  it("shows the dark logo and background on dark pages when there are ones", async () => {
+    const base = site([event({ opens_at: null })]);
+    serve({
+      "/2026/event.json": event({
+        background: "2026/theme/day.png",
+        background_dark: "2026/theme/night.png",
+      }),
+      "/site.json": {
+        ...base,
+        brand: { ...base.brand, logo_dark: "/brand/logo-dark.svg" },
+      },
+    });
+    render(<App path="/2026/" />);
+    await screen.findByRole("list", { name: "Calendar doors" });
+    const light = document.querySelector('header img[src="/brand/logo.svg"]');
+    const dark = document.querySelector(
+      'header img[src="/brand/logo-dark.svg"]',
+    );
+    expect(light).toHaveClass("when-light");
+    expect(dark).toHaveClass("when-dark");
+    const backdrops = screen.getAllByTestId("backdrop");
+    expect(backdrops.map((b) => b.style.backgroundImage)).toEqual([
+      'url("2026/theme/day.png")',
+      'url("2026/theme/night.png")',
+    ]);
+    expect(backdrops[1]).toHaveClass("when-dark");
+  });
+
   it("stays plain without theme decoration", async () => {
     serve({ "/2026/event.json": event() });
     render(<App path="/2026/" />);
