@@ -1,0 +1,21 @@
+name: Northwind
+logo: logo.svg
+palette:
+  light:
+    primary: "#1f5f8b"
+    on-primary: "#ffffff"
+    surface: "#f3f6f9"
+    surface-raised: "#ffffff"
+    text: "#14202b"
+    text-muted: "#52606d"
+    accent: "#0f7b6c"
+    border: "#d6dee6"
+  dark:
+    primary: "#7cc4f0"
+    on-primary: "#0b1b28"
+    surface: "#0c141c"
+    surface-raised: "#132029"
+    text: "#e6eef5"
+    text-muted: "#93a4b3"
+    accent: "#5fd3bf"
+    border: "#22323f"

@@ -1,7 +1,7 @@
 .PHONY: help build build-release fmt fmt-check lint test check wasm plaintext ci \
 	frontend-install frontend-lint frontend-test frontend-build frontend-ci frontend-dev \
 	changelog changelog-unreleased changelog-release release-prepare dist-plan demo acceptance \
-	docs docs-dev site clean setup-hooks
+	docs docs-dev site showcases clean setup-hooks
 
 BLUE := \033[0;34m
 GREEN := \033[0;32m
@@ -38,7 +38,7 @@ test: ## Run tests
 wasm: ## Check that advent-core builds for wasm32 (no tokio, no filesystem)
 	cargo build --target wasm32-unknown-unknown -p advent-core
 
-plaintext: ## Fail if plaintext puzzle content is tracked outside templates/ and fixtures/
+plaintext: ## Fail if plaintext puzzle content is tracked outside templates/, fixtures/ and showcases/
 	./scripts/check-plaintext.sh
 
 check: fmt lint test ## Format, lint and test
@@ -127,7 +127,12 @@ docs: docs/node_modules ## Build the documentation into docs/dist
 docs-dev: docs/node_modules ## Start the documentation dev server
 	cd docs && npm run dev
 
-site: frontend-build docs/node_modules ## Assemble docs and demo into site/ (what CI deploys)
+showcases: frontend-build ## Build both showcases into showcases-dist/
+	cargo build -p advent-cli
+	./scripts/build-showcase.sh northwind showcases-dist/northwind
+	./scripts/build-showcase.sh christmas showcases-dist/christmas
+
+site: frontend-build docs/node_modules ## Assemble docs, demo and showcases into site/ (what CI deploys)
 	cargo build -p advent-cli
 	./scripts/build-site.sh
 

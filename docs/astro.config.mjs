@@ -22,12 +22,23 @@ export default defineConfig({
       customCss: ["./src/styles/theme.css"],
       // Fail the build on a broken internal link. /demo/ is deployed beside
       // the docs, not part of them.
-      plugins: [starlightLinksValidator({ exclude: ["/demo/", "/demo/**"] })],
+      plugins: [
+        starlightLinksValidator({
+          exclude: ["/demo/", "/demo/**", "/northwind/", "/northwind/**", "/christmas/", "/christmas/**"],
+        }),
+      ],
       sidebar: [
         { label: "Start here", items: [{ autogenerate: { directory: "start" } }] },
         { label: "Guides", items: [{ autogenerate: { directory: "guides" } }] },
         { label: "Reference", items: [{ autogenerate: { directory: "reference" } }] },
-        { label: "Live demo", link: "/demo/", attrs: { target: "_self" } },
+        {
+          label: "Try it",
+          items: [
+            { label: "Live demo", link: "/demo/", attrs: { target: "_self" } },
+            { label: "Showcase: Northwind (company)", link: "/northwind/", attrs: { target: "_self" } },
+            { label: "Showcase: 24-day Christmas", link: "/christmas/", attrs: { target: "_self" } },
+          ],
+        },
       ],
     }),
   ],

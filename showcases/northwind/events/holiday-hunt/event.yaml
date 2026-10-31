@@ -1,0 +1,13 @@
+title: "Northwind Holiday Hunt 2026"
+timezone: Europe/London
+start: 2026-12-01
+days: 8
+# Office days only: doors open Monday to Friday.
+weekdays: true
+# The showcase opens every door; a real hunt would leave this out.
+unlocked: 8
+notices:
+  - text: "Puzzles about Northwind only use facts given in the puzzle. No need to search the intranet."
+story:
+  title: "Light the way"
+  intro: "Eight office days, eight doors. Each solve gives you one word; together they light the way to your certificate."

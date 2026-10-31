@@ -3,6 +3,7 @@ target/
 node_modules/
 dist/
 demo-dist/
+showcases-dist/
 site/
 docs/.astro/
 
@@ -11,7 +12,8 @@ docs/.astro/
 
 # Plaintext puzzle content must never be committed: only sealed output and the
 # encrypted source copy are. Ignore it wherever it appears in a day or final
-# folder, then allow the template and test fixtures, which are public on purpose.
+# folder, then allow the template, test fixtures and showcases, which are
+# public on purpose.
 # scripts/check-plaintext.sh catches anything force-added past these rules.
 **/day*/puzzle.md
 **/day*/meta.yaml
@@ -30,6 +32,7 @@ docs/.astro/
 **/final/*.svg
 !templates/**
 !fixtures/**
+!showcases/**
 
 # Private keys
 editors.key

@@ -1,0 +1,11 @@
+title: "Christmas 2026"
+timezone: UTC
+start: 2026-12-01
+days: 24
+# The showcase opens the first ten doors; the rest open on their dates.
+unlocked: 10
+notices:
+  - text: "Ten doors are open in this showcase. The others open on their own date, as in a live calendar."
+story:
+  title: "Twenty-four doors to Christmas"
+  intro: "One small puzzle a day from December 1st. Collect every word and the key opens your certificate."

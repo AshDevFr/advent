@@ -1,0 +1,12 @@
+name: Christmas Calendar
+palette:
+  light:
+    primary: "#b3261e"
+    surface: "#fbf7f0"
+    accent: "#1b6b3a"
+  dark:
+    primary: "#ff8a7a"
+    surface: "#101a14"
+    surface-raised: "#16231b"
+    accent: "#7fd39b"
+    border: "#26382c"

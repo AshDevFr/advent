@@ -5,13 +5,13 @@
 
 set -euo pipefail
 
-allowed='^(templates|fixtures)/'
+allowed='^(templates|fixtures|showcases)/'
 content='(^|/)day[^/]*/(puzzle\.md|meta\.yaml|[^/]+\.(png|jpe?g|gif|webp|svg))$|(^|/)final/(final\.yaml|[^/]+\.(png|jpe?g|gif|webp|svg))$'
 
 offenders=$(git ls-files | grep -E "$content" | grep -Ev "$allowed" || true)
 
 if [ -n "$offenders" ]; then
-  echo "Plaintext puzzle content is tracked outside templates/ and fixtures/:" >&2
+  echo "Plaintext puzzle content is tracked outside templates/, fixtures/ and showcases/:" >&2
   echo "$offenders" | sed 's/^/  /' >&2
   echo "Remove it with: git rm --cached <file>" >&2
   exit 1
