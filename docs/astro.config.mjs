@@ -1,5 +1,6 @@
 // @ts-check
 import starlight from "@astrojs/starlight";
+import starlightLinksValidator from "starlight-links-validator";
 import { defineConfig } from "astro/config";
 
 // The docs are the root of advent-demo.4sh.dev; the demo and the showcases
@@ -19,6 +20,9 @@ export default defineConfig({
         },
       ],
       customCss: ["./src/styles/theme.css"],
+      // Fail the build on a broken internal link. /demo/ is deployed beside
+      // the docs, not part of them.
+      plugins: [starlightLinksValidator({ exclude: ["/demo/", "/demo/**"] })],
       sidebar: [
         { label: "Start here", items: [{ autogenerate: { directory: "start" } }] },
         { label: "Guides", items: [{ autogenerate: { directory: "guides" } }] },
