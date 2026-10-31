@@ -9,11 +9,12 @@ import {
 } from "@/api";
 import { BrowserTab } from "@/BrowserTab";
 import { CertificatePanel } from "@/certificate/Certificate";
-import { useEventProgress } from "@/client";
+import { client, useEventProgress } from "@/client";
 import { Countdown } from "@/components/Countdown";
 import { type Door, DoorGrid } from "@/components/DoorGrid";
 import { KeyStrip } from "@/components/KeyStrip";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Button } from "@/components/ui/button";
 import { DoorPanel } from "@/door/DoorPanel";
 import { Progress } from "@/door/Progress";
 import { Notices } from "@/notices/Notices";
@@ -57,6 +58,11 @@ export function EventPage({ id }: { id: string }) {
   const progress = useEventProgress(id);
 
   useEffect(() => {
+    // A server keeps progress itself; bring it in (the static site has it
+    // in this browser already).
+    client()
+      .load?.(id)
+      .catch(() => {});
     api
       .event(id)
       .then(setEvent)
@@ -127,7 +133,10 @@ export function EventPage({ id }: { id: string }) {
             )}
             {eyebrow || "All calendars"}
           </a>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <SignOut />
+            <ThemeToggle />
+          </div>
         </div>
         <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
           {event.headline ?? event.title}
@@ -153,5 +162,16 @@ export function EventPage({ id }: { id: string }) {
         />
       )}
     </main>
+  );
+}
+
+/** On a server-hosted calendar: end this browser's session. */
+function SignOut() {
+  const signOut = client().signOut;
+  if (!signOut) return null;
+  return (
+    <Button type="button" variant="ghost" size="sm" onClick={() => signOut()}>
+      Sign out
+    </Button>
   );
 }

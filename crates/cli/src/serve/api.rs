@@ -32,6 +32,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/session", get(session))
         .route("/api/signin", post(sign_in))
         .route("/api/signin/request", post(request_link))
+        .route("/api/signin/{link}", get(link_owner))
+        .route("/signin/{link}", get(app_page))
         .route("/api/signout", post(sign_out))
         .route("/api/name", put(set_name))
         .route("/api/events/{event}/progress", get(progress))
@@ -196,6 +198,20 @@ async fn sign_in(
     Ok(response)
 }
 
+/// Who a link signs in as, without signing in: the link page shows it
+/// and asks for a click, because mail scanners open every link in an
+/// email and a plain visit must not sign anyone in.
+async fn link_owner(State(state): Shared, Path(link): Path<String>) -> ApiResult<Json<Me>> {
+    Ok(Json(
+        players::link_player(&state.store, &link).await?.into(),
+    ))
+}
+
+/// The app's page, for routes the frontend handles itself.
+async fn app_page(State(state): Shared) -> Response {
+    serve_file(state, "/".into()).await
+}
+
 #[derive(Deserialize)]
 struct LinkRequest {
     email: String,
@@ -338,9 +354,12 @@ async fn api_not_found() -> ApiError {
 /// The generated site. Event data changes at each release, so nothing is
 /// cached by the browser.
 async fn site(State(state): Shared, uri: Uri) -> Response {
+    serve_file(state, uri.path().to_string()).await
+}
+
+async fn serve_file(state: Arc<AppState>, path: String) -> Response {
     let content = state.content();
     let site = content.site.clone();
-    let path = uri.path().to_string();
     let file = tokio::task::spawn_blocking(move || {
         // Keep the folder alive while it is read.
         let _content = content;

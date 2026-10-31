@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useId, useState } from "react";
 
 import { api, type DayPage } from "@/api";
-import { client, useEventProgress } from "@/client";
+import { ClientError, client, useEventProgress } from "@/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -94,7 +94,7 @@ function AnswerForm({ event, day }: { event: string; day: number }) {
     } catch (e) {
       setWrong(null);
       setProblem(
-        e instanceof InsecureContextError
+        e instanceof InsecureContextError || e instanceof ClientError
           ? e.message
           : "Your answer could not be checked. Please try again.",
       );

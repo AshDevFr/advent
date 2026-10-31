@@ -4,6 +4,7 @@
  * browser and keeps progress in localStorage; a server-hosted calendar
  * checks answers and keeps progress on the server. Pages only use this.
  */
+import { serverClient } from "./server";
 import { staticClient } from "./static";
 
 export { useEventProgress } from "@/store";
@@ -27,6 +28,9 @@ export interface Client {
    * Moving progress to another browser with a code. Only where progress
    * lives in the browser; a server already has it everywhere.
    */
+  /** Bring the event's progress from where it is kept (server only). */
+  load?(event: string): Promise<void>;
+  signOut?(): Promise<void>;
   transfer?: {
     exportCode(event: string): string;
     /** Replace the event's progress; false if the code is not valid. */
@@ -47,10 +51,13 @@ export function hostingMode(doc: Document = document): Client["mode"] {
     : "static";
 }
 
+/** A failure to show the player as it is. */
+export class ClientError extends Error {}
+
 let chosen: Client | null = null;
 
 export function client(): Client {
-  chosen ??= staticClient;
+  chosen ??= hostingMode() === "server" ? serverClient : staticClient;
   return chosen;
 }
 

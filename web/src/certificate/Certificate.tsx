@@ -30,6 +30,11 @@ export function CertificatePanel({
   );
   const complete = words.every(Boolean);
   const [name, setName] = useState(progress.name);
+  // On a server-hosted calendar the stored name (from the invitation)
+  // arrives after the page; fill it in unless the player has typed one.
+  useEffect(() => {
+    if (progress.name) setName((typed) => typed || progress.name);
+  }, [progress.name]);
   const [payload, setPayload] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputId = useId();
@@ -70,7 +75,8 @@ export function CertificatePanel({
           <p className="flex-1 text-sm text-muted-foreground">
             When every word is in, enter the name that goes on your certificate.
             The key is derived from your words in your browser, and it decrypts
-            the certificate. Nothing is checked on a server.
+            the certificate.
+            {client().mode === "static" && " Nothing is checked on a server."}
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <label htmlFor={inputId} className="sr-only">
