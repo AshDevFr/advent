@@ -10,6 +10,7 @@ all open, certificate included. **[Read the docs](https://advent-demo.4sh.dev)**
 Two showcases show what else it can look like: a
 [company calendar with its own brand](https://advent-demo.4sh.dev/northwind/)
 (workdays only) and a [full 24-day Christmas calendar](https://advent-demo.4sh.dev/christmas/).
+Screenshots of both are in the [gallery](https://advent-demo.4sh.dev/start/gallery/).
 
 ## How it works
 
