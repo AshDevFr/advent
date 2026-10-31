@@ -51,9 +51,31 @@ pub struct EventInfo {
     pub released: Vec<u32>,
     /// Type label of each released day (and of no other), for the door cards.
     pub types: BTreeMap<u32, String>,
+    /// Announcements published so far, in the order of `event.yaml`.
+    pub notices: Vec<SiteNotice>,
     /// Site paths of theme decoration, if the event's theme sets them.
     pub background: Option<String>,
     pub doors: Option<String>,
+}
+
+/// A published notice. `id` derives from the text, so players who dismissed
+/// a notice see it again if its text is edited.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SiteNotice {
+    pub id: String,
+    pub text: String,
+}
+
+impl SiteNotice {
+    pub fn new(text: &str) -> Self {
+        use sha2::{Digest, Sha256};
+        let digest = Sha256::digest(text.as_bytes());
+        let id = digest[..6].iter().map(|b| format!("{b:02x}")).collect();
+        SiteNotice {
+            id,
+            text: text.to_string(),
+        }
+    }
 }
 
 /// `/<event>/api/day/N.json`: a released day, in plain form.

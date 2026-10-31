@@ -14,6 +14,7 @@ import { KeyStrip } from "@/components/KeyStrip";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DoorPanel } from "@/door/DoorPanel";
 import { Progress } from "@/door/Progress";
+import { Notices } from "@/notices/Notices";
 import { useEventProgress } from "@/store";
 import { useThemeCss } from "@/useThemeCss";
 import { Message } from "./Landing";
@@ -109,6 +110,7 @@ export function EventPage({ id }: { id: string }) {
           <p className="max-w-2xl text-muted-foreground">{event.intro}</p>
         )}
       </header>
+      <Notices event={id} notices={event.notices} />
       {released.size === 0 && opensAt && opensAt.getTime() > Date.now() && (
         <Countdown target={opensAt} />
       )}

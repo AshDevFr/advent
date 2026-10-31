@@ -23,6 +23,8 @@ export interface EventInfo {
   /** When day 1 opens (RFC 3339), or null when it is already open. */
   opens_at: string | null;
   released: number[];
+  /** Announcements published so far; `id` changes when the text does. */
+  notices: { id: string; text: string }[];
   /** Type label of each released day, keyed by day number. */
   types: Record<string, string>;
   background: string | null;

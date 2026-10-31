@@ -11,6 +11,7 @@ export const event = (over: Partial<EventInfo> = {}): EventInfo => ({
   dates: Array.from({ length: 7 }, (_, i) => `2026-12-0${i + 1}`),
   opens_at: "2026-12-01T00:00:00Z",
   released: [1, 2, 3],
+  notices: [],
   types: { 1: "teaser", 2: "code", 3: "company" },
   background: null,
   doors: null,

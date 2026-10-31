@@ -4,7 +4,7 @@
 use chrono::{DateTime, Days, NaiveDate, NaiveTime, TimeZone, Utc};
 use chrono_tz::Tz;
 
-use crate::model::Event;
+use crate::model::{Event, Notice};
 
 /// Source of the current time. Core never reads the system clock (it does
 /// not exist on wasm32-unknown-unknown); callers provide one.
@@ -64,6 +64,16 @@ pub fn is_released(event: &Event, day: u32, now: DateTime<Utc>) -> bool {
     day <= event.unlocked || now >= start_of_day(event.timezone, day_date(event, day))
 }
 
+/// Whether a notice is shown at `now`: with `day`, once that day is
+/// released; with `date`, from local midnight of that date; else always.
+pub fn notice_published(event: &Event, notice: &Notice, now: DateTime<Utc>) -> bool {
+    match (notice.day, notice.date) {
+        (Some(day), _) => is_released(event, day, now),
+        (None, Some(date)) => now >= start_of_day(event.timezone, date),
+        (None, None) => true,
+    }
+}
+
 /// How many of a day's hints are due at `now`, given each hint's delay in
 /// days after the door opens (`Event::hint_days`); a hint is due from local
 /// midnight on that date. Unlocked days have every hint due. The delays do
@@ -97,6 +107,7 @@ mod tests {
             weekdays: false,
             dates: None,
             hint_after: vec![1, 2],
+            notices: Vec::new(),
             story: Default::default(),
         }
     }
@@ -195,6 +206,27 @@ mod tests {
         assert_eq!(hints_due(&e, 5, &[0, 3], at("2026-12-04T23:00:00Z")), 1);
         assert_eq!(hints_due(&e, 5, &[0, 3], at("2026-12-07T22:59:59Z")), 1);
         assert_eq!(hints_due(&e, 5, &[0, 3], at("2026-12-07T23:00:00Z")), 2);
+    }
+
+    #[test]
+    fn model_schedule_notices_follow_their_day_or_date() {
+        let e = event("2026-12-01", 0);
+        let notice = |day: Option<u32>, date: Option<&str>| Notice {
+            text: "n".into(),
+            day,
+            date: date.map(|d| d.parse().unwrap()),
+        };
+        // End of Dec 3 in Paris.
+        let now = at("2026-12-03T22:59:59Z");
+        assert!(notice_published(&e, &notice(None, None), now));
+        assert!(notice_published(&e, &notice(Some(3), None), now));
+        assert!(notice_published(&e, &notice(None, Some("2026-12-02")), now));
+        assert!(!notice_published(&e, &notice(Some(4), None), now));
+        assert!(!notice_published(
+            &e,
+            &notice(None, Some("2026-12-10")),
+            now
+        ));
     }
 
     #[test]

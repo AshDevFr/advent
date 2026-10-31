@@ -10,6 +10,14 @@ days: 24
 #   dates: [2026-12-01, 2026-12-03, 2026-12-08]
 # `advent schedule` prints the result.
 
+# Announcements at the top of the calendar. A notice with `day` appears when
+# that day opens, one with `date` from that date, others from the start.
+# Players can dismiss each one; editing its text shows it again.
+# notices:
+#   - text: "Hints arrive at midnight."
+#   - text: "Day 12's puzzle had a typo; it is fixed now."
+#     day: 12
+
 # When hints appear, in days after a door opens (at local midnight; 0 means
 # with the door). A hint in meta.yaml can set its own: {text: ..., after: 0}.
 hint_after: [1, 2]

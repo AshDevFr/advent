@@ -93,8 +93,22 @@ pub struct Event {
     /// local midnight (0 = with the door). One entry per possible hint.
     #[serde(default = "default_hint_after")]
     pub hint_after: Vec<u32>,
+    /// Announcements shown at the top of the calendar.
+    #[serde(default)]
+    pub notices: Vec<Notice>,
     #[serde(default)]
     pub story: Story,
+}
+
+/// An announcement on the calendar page. With `day` it appears once that
+/// day opens, with `date` from local midnight of that date, and with
+/// neither from the start; it then stays until removed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Notice {
+    pub text: String,
+    pub day: Option<u32>,
+    pub date: Option<NaiveDate>,
 }
 
 fn default_every() -> u32 {
@@ -132,6 +146,7 @@ impl Event {
             return Err(invalid("days", "must be at least 1"));
         }
         event.validate_schedule()?;
+        event.validate_notices()?;
         if event.unlocked > event.days {
             return Err(invalid(
                 "unlocked",
@@ -162,6 +177,32 @@ impl Event {
             ));
         }
         Ok(days)
+    }
+
+    fn validate_notices(&self) -> Result<(), ModelError> {
+        for notice in &self.notices {
+            if notice.text.trim().is_empty() {
+                return Err(invalid("notices", "a notice has no text"));
+            }
+            if notice.day.is_some() && notice.date.is_some() {
+                return Err(invalid(
+                    "notices",
+                    format!("{:?} sets both `day` and `date`; use one", notice.text),
+                ));
+            }
+            if let Some(day) = notice.day
+                && (day == 0 || day > self.days)
+            {
+                return Err(invalid(
+                    "notices",
+                    format!(
+                        "{:?} is for day {day}, but the event has {} days",
+                        notice.text, self.days
+                    ),
+                ));
+            }
+        }
+        Ok(())
     }
 
     fn validate_schedule(&self) -> Result<(), ModelError> {
@@ -659,6 +700,31 @@ mod tests {
             event.hint_days(&[Some(5), None]),
             Err(ModelError::Invalid { field: "hints", .. })
         ));
+    }
+
+    #[test]
+    fn model_notices_are_validated() {
+        let ok = Event::from_yaml(&format!(
+            "{BASE}notices:\n  - text: Welcome\n  - text: Fixed\n    day: 3\n  - text: Last week\n    date: 2026-12-18\n"
+        ))
+        .unwrap();
+        assert_eq!(ok.notices.len(), 3);
+        assert_eq!(ok.notices[1].day, Some(3));
+
+        let field = |yaml: &str| match Event::from_yaml(yaml) {
+            Err(ModelError::Invalid { field, .. }) => field,
+            other => panic!("expected a validation error, got {other:?}"),
+        };
+        assert_eq!(
+            field(&format!(
+                "{BASE}notices:\n  - text: x\n    day: 2\n    date: 2026-12-02\n"
+            )),
+            "notices"
+        );
+        assert_eq!(
+            field(&format!("{BASE}notices:\n  - text: x\n    day: 13\n")),
+            "notices"
+        );
     }
 
     #[test]

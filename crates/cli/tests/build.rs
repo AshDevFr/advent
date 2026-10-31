@@ -202,6 +202,27 @@ fn build_writes_brand_and_theme() {
 }
 
 #[test]
+fn build_publishes_notices_once_their_moment_comes() {
+    let repo = sample_event();
+    let path = repo.event_dir().join("event.yaml");
+    let text = fs::read_to_string(&path).unwrap()
+        + "notices:\n  - text: Always\n  - text: Day three\n    day: 3\n  - text: Early December\n    date: 2026-12-02\n  - text: Day four\n    day: 4\n  - text: Mid December\n    date: 2026-12-10\n";
+    fs::write(path, text).unwrap();
+
+    let out = build(&repo, "2026-12-03", "dist");
+    let event: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("2026/event.json")).unwrap()).unwrap();
+    let texts: Vec<&str> = event["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["text"].as_str().unwrap())
+        .collect();
+    assert_eq!(texts, ["Always", "Day three", "Early December"]);
+    assert_eq!(event["notices"][0]["id"].as_str().unwrap().len(), 12);
+}
+
+#[test]
 fn build_requires_the_release_key() {
     let repo = sample_event();
     repo.advent()

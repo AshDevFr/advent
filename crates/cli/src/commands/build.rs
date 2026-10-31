@@ -11,8 +11,10 @@ use std::path::Path;
 use advent_core::format::{self, Bundle};
 use advent_core::model::{Brand, Event, Theme};
 use advent_core::primitives;
-use advent_core::schedule::{end_of_date, first_release, hints_due, is_released};
-use advent_core::site::{DayPage, EventInfo, HintsDue, Locks, SiteBrand, SiteIndex, theme_css};
+use advent_core::schedule::{end_of_date, first_release, hints_due, is_released, notice_published};
+use advent_core::site::{
+    DayPage, EventInfo, HintsDue, Locks, SiteBrand, SiteIndex, SiteNotice, theme_css,
+};
 use advent_core::wrap::{self, x25519};
 use anyhow::{Context, bail};
 use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
@@ -146,6 +148,12 @@ fn build_event(
         opens_at: first_release(&event).map(|t| t.to_rfc3339_opts(SecondsFormat::Secs, true)),
         released,
         types,
+        notices: event
+            .notices
+            .iter()
+            .filter(|notice| notice_published(&event, notice, now))
+            .map(|notice| SiteNotice::new(&notice.text))
+            .collect(),
         background,
         doors,
     };

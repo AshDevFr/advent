@@ -26,6 +26,8 @@ timezone: UTC
 start: "2026-12-01"
 days: 7
 unlocked: 7
+notices:
+  - text: "Demo build: every door is open with a sample puzzle, and their seven words form the demo key. In a live event each door opens on its own date."
 story:
   title: "The Longest Night Hunt"
   intro: "A sample calendar with every door open. Each solve gives you one word of the key; collect all seven and the key opens your certificate."
