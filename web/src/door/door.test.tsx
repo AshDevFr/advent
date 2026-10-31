@@ -47,6 +47,27 @@ describe("door panel", () => {
     expect(dialog.querySelector("script")).toBeNull();
   });
 
+  it("renders tables", async () => {
+    serve({
+      "/2026/api/day/2.json": {
+        day: 2,
+        title: "Labels",
+        type: "wordplay",
+        markdown:
+          "| # | Label |\n|---|---|\n| 1 | BRYCERRAN |\n| 2 | SLOMAND |",
+      },
+      "/2026/api/day/2/locks.json": { word_locks: [] },
+      "/2026/api/day/2/hint.json": { hints: [] },
+    });
+    render(<DoorPanel event="2026" day={2} onClose={() => {}} />);
+    const dialog = await screen.findByRole("dialog", { name: "Labels" });
+    const table = within(dialog).getByRole("table");
+    expect(within(table).getAllByRole("row")).toHaveLength(3);
+    expect(
+      within(table).getByRole("cell", { name: "BRYCERRAN" }),
+    ).toBeInTheDocument();
+  });
+
   it("accepts an answer in any case and punctuation, and stores the word", async () => {
     serveDay();
     const user = userEvent.setup();

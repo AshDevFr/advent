@@ -1,9 +1,10 @@
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { assetUrl } from "@/api";
 
 /**
- * A puzzle's markdown. Raw HTML is not rendered: nothing needs it, and
+ * A puzzle's markdown, with GitHub's tables and strikethrough. Raw HTML is not rendered: nothing needs it, and
  * leaving it out narrows what an authoring mistake can do. Relative image
  * paths point at the day's published assets.
  */
@@ -20,6 +21,7 @@ export function Markdown({
     <div className="prose-puzzle flex flex-col gap-3 text-left leading-relaxed">
       <ReactMarkdown
         skipHtml
+        remarkPlugins={[remarkGfm]}
         components={{
           img: ({ src, alt }) => (
             <img
@@ -47,6 +49,21 @@ export function Markdown({
           ul: ({ children }) => <ul className="list-disc pl-6">{children}</ul>,
           ol: ({ children }) => (
             <ol className="list-decimal pl-6">{children}</ol>
+          ),
+          table: ({ children }) => (
+            <div className="overflow-x-auto">
+              <table className="mx-auto border-collapse text-sm">
+                {children}
+              </table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th className="border bg-muted px-3 py-1.5 text-left font-semibold">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="border px-3 py-1.5">{children}</td>
           ),
           blockquote: ({ children }) => (
             <blockquote className="border-l-4 pl-3 text-muted-foreground">
