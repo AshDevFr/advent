@@ -12,6 +12,30 @@ calendar is published as a static site; see "Publishing" below.
    curl --proto '=https' --tlsv1.2 -LsSf https://github.com/AshDevFr/advent/releases/download/v{{engine}}/advent-cli-installer.sh | sh
    ```
 
+   Or skip the install and run it from its Docker image: this shell function
+   (bash or zsh) stands in for `advent` until the terminal is closed. It only
+   sees the folder it is run from, so run it at the repository root.
+
+   ```sh
+   advent() {
+     docker run --rm -i --init -u "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
+       ghcr.io/ashdevfr/advent:{{engine}} "$@"
+   }
+   ```
+
+   Every command below works through it except the server `advent preview`
+   starts, which only listens inside the container. Write the preview to a
+   folder and serve that instead:
+
+   ```sh
+   advent preview --all-open --out .preview
+   docker run --rm -p 127.0.0.1:4321:80 -v "$PWD/.preview:/usr/share/nginx/html:ro" nginx:alpine
+   rm -rf .preview   # it holds days that are not released yet
+   ```
+
+   The image has no git, so `advent verify` skips its check for committed
+   plaintext there; CI still runs it.
+
 2. Put `editors.key` at the root of the repository (from `advent init`, or
    from whoever runs the calendar). It is gitignored.
 3. Write your first day: copy `examples/day01` to `events/{{event}}/day01`,

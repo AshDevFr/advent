@@ -16,6 +16,30 @@ repository's sealed files.
    curl --proto '=https' --tlsv1.2 -LsSf https://github.com/AshDevFr/advent/releases/download/v{{engine}}/advent-cli-installer.sh | sh
    ```
 
+   Or skip the install and run it from its Docker image: this shell function
+   (bash or zsh) stands in for `advent` until the terminal is closed. It only
+   sees the folder it is run from, so run it at the repository root.
+
+   ```sh
+   advent() {
+     docker run --rm -i --init -u "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
+       ghcr.io/ashdevfr/advent:{{engine}} "$@"
+   }
+   ```
+
+   Every command below works through it except the server `advent preview`
+   starts, which only listens inside the container. Write the preview to a
+   folder and serve that instead:
+
+   ```sh
+   advent preview --all-open --out .preview
+   docker run --rm -p 127.0.0.1:4321:80 -v "$PWD/.preview:/usr/share/nginx/html:ro" nginx:alpine
+   rm -rf .preview   # it holds days that are not released yet
+   ```
+
+   The image has no git, so `advent verify` skips its check for committed
+   plaintext there; CI still runs it.
+
 2. Put `editors.key` at the root of the repository (from `advent init`, or
    from whoever runs the calendar). It is gitignored.
 3. Write your first day: copy `examples/day01` to `events/{{event}}/day01`,
@@ -30,6 +54,20 @@ repository's sealed files.
    ADVENT_PUBLIC_URL=http://localhost:8080 \
    ADVENT_INSECURE_COOKIES=true \
    advent serve
+   ```
+
+   Through the Docker image, the server needs its port published and the
+   database kept in the repository's `data/`:
+
+   ```sh
+   docker run --rm --init -p 127.0.0.1:8080:8080 \
+     -u "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
+     -e ADVENT_RELEASE_KEY=AGE-SECRET-KEY-1... \
+     -e ADVENT_ADMIN__PASSWORD=change-me \
+     -e ADVENT_PUBLIC_URL=http://localhost:8080 \
+     -e ADVENT_INSECURE_COOKIES=true \
+     -e ADVENT_DATA=/work/data \
+     ghcr.io/ashdevfr/advent:{{engine}} serve
    ```
 
    Open http://localhost:8080/admin, sign in with the password, invite

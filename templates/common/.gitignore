@@ -20,4 +20,10 @@ dist/
 data/
 .env
 
+# The engine binary, if a release archive is unpacked here, and a preview
+# written with `advent preview --out .preview` (it holds unreleased days)
+/advent
+/advent.exe
+.preview/
+
 .DS_Store

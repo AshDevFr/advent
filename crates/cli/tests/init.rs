@@ -115,6 +115,9 @@ fn init_gitignore_keeps_plaintext_out_and_sealed_files_in() {
     assert!(ignored("events/2026/day01/map.png"));
     assert!(ignored("events/2026/final/final.yaml"));
     assert!(ignored("editors.key"));
+    assert!(ignored(".preview/2026/api/day/1.json"));
+    assert!(ignored("advent"));
+    assert!(!ignored("brand/advent.svg"));
     assert!(!ignored("events/2026/day01/sealed.json"));
     assert!(!ignored("events/2026/day01/source.age"));
     assert!(!ignored("events/2026/final/sealed.json"));
@@ -142,6 +145,10 @@ fn init_static_edition_deploys_to_pages_without_docker_files() {
         readme.contains("events/2026/day01"),
         "the event id is filled in"
     );
+    assert!(readme.contains(&format!(
+        "ghcr.io/ashdevfr/advent:{}",
+        env!("CARGO_PKG_VERSION")
+    )));
 }
 
 #[test]
