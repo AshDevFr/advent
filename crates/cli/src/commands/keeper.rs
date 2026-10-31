@@ -102,21 +102,23 @@ pub fn seal_final(
             .get(FINAL_FILE)
             .with_context(|| format!("no {FINAL_FILE} in {}", final_dir.display()))?,
     )?)?;
-    let image = match &payload.image {
-        Some(name) => Some(
-            images::to_webp(
-                files
-                    .get(name)
-                    .with_context(|| format!("image {name:?} not found"))?,
-            )
-            .with_context(|| format!("converting {name}"))?,
-        ),
-        None => None,
+    let webp = |name: &Option<String>| -> anyhow::Result<Option<Vec<u8>>> {
+        let Some(name) = name else { return Ok(None) };
+        let data = files
+            .get(name)
+            .with_context(|| format!("image {name:?} not found next to {FINAL_FILE}"))?;
+        Ok(Some(
+            images::to_webp(data).with_context(|| format!("converting {name}"))?,
+        ))
     };
     let certificate = Certificate {
+        image: webp(&payload.image)?,
+        background: webp(&payload.background)?,
         title: payload.title,
         message: payload.message,
-        image,
+        image_position: payload.image_position,
+        subtitle: payload.subtitle,
+        signature: payload.signature,
     };
     let plaintext = serde_json::to_vec(&certificate)?;
 

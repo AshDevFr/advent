@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::model::ImagePosition;
 use crate::primitives::{Iv, Salt, WordLock};
 
 /// The sealed-file schema this engine reads and writes.
@@ -104,6 +105,15 @@ pub struct Certificate {
     /// WebP image, when the keeper provided one.
     #[serde(default, with = "b64_opt", skip_serializing_if = "Option::is_none")]
     pub image: Option<Vec<u8>>,
+    #[serde(default)]
+    pub image_position: ImagePosition,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtitle: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
+    /// WebP background image, when the keeper provided one.
+    #[serde(default, with = "b64_opt", skip_serializing_if = "Option::is_none")]
+    pub background: Option<Vec<u8>>,
 }
 
 impl Serialize for WordLock {

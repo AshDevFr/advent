@@ -198,13 +198,19 @@ export function CertificateView({
   const title = wrap(payload.title, 30)
     .slice(0, 2)
     .map((line, i) => ({ line, y: 300 + i * 66 }));
-  const nameY = title[title.length - 1].y + 110;
+  const dividerY = title[title.length - 1].y + 50;
+  const subtitleY = payload.subtitle ? dividerY + 52 : null;
+  const nameY = (subtitleY ?? dividerY) + 70;
+  const imageOnTop = payload.image_position === "top" && payload.image;
   const message = wrap(payload.message, 60)
     .slice(0, 5)
     .map((line, i) => ({ line, y: nameY + 90 + i * 40 }));
 
   // The keeper's image sits under the message, above the footer.
-  const imageY = Math.min((message[message.length - 1]?.y ?? nameY) + 40, 630);
+  const imageY = Math.min(
+    (message[message.length - 1]?.y ?? nameY) + 40,
+    payload.signature ? 590 : 630,
+  );
 
   async function exportImage() {
     if (svgRef.current) {
@@ -226,6 +232,23 @@ export function CertificateView({
         className="h-auto w-full rounded-md border"
       >
         <rect width="1200" height="850" fill={colours.surface} />
+        {payload.background && (
+          <>
+            <image
+              href={`data:image/webp;base64,${payload.background}`}
+              width="1200"
+              height="850"
+              preserveAspectRatio="xMidYMid slice"
+            />
+            {/* A wash of the page colour keeps the text readable. */}
+            <rect
+              width="1200"
+              height="850"
+              fill={colours.surface}
+              opacity="0.8"
+            />
+          </>
+        )}
         <rect
           x="30"
           y="30"
@@ -236,7 +259,18 @@ export function CertificateView({
           strokeWidth="6"
           rx="24"
         />
-        {logo && <image href={logo} x="560" y="70" width="80" height="80" />}
+        {imageOnTop ? (
+          <image
+            href={`data:image/webp;base64,${payload.image}`}
+            x="500"
+            y="60"
+            width="200"
+            height="100"
+            preserveAspectRatio="xMidYMid meet"
+          />
+        ) : (
+          logo && <image href={logo} x="560" y="70" width="80" height="80" />
+        )}
         <text
           x="600"
           y="200"
@@ -262,11 +296,23 @@ export function CertificateView({
         <line
           x1="540"
           x2="660"
-          y1={nameY - 70}
-          y2={nameY - 70}
+          y1={dividerY}
+          y2={dividerY}
           stroke={colours.primary}
           strokeWidth="2"
         />
+        {subtitleY && (
+          <text
+            x="600"
+            y={subtitleY}
+            textAnchor="middle"
+            fontSize="26"
+            fontStyle="italic"
+            fill={colours.muted}
+          >
+            {payload.subtitle}
+          </text>
+        )}
         <text
           x="600"
           y={nameY}
@@ -288,7 +334,7 @@ export function CertificateView({
             {line}
           </text>
         ))}
-        {payload.image && (
+        {payload.image && !imageOnTop && (
           <image
             href={`data:image/webp;base64,${payload.image}`}
             x="500"
@@ -297,6 +343,18 @@ export function CertificateView({
             height="120"
             preserveAspectRatio="xMidYMid meet"
           />
+        )}
+        {payload.signature && (
+          <text
+            x="600"
+            y="745"
+            textAnchor="middle"
+            fontSize="26"
+            fontStyle="italic"
+            fill={colours.text}
+          >
+            {payload.signature}
+          </text>
         )}
         <text
           x="600"

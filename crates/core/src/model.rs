@@ -361,6 +361,24 @@ pub struct FinalPayload {
     pub message: String,
     /// Optional image file next to `final.yaml`.
     pub image: Option<String>,
+    /// Where `image` goes: `bottom` (under the message) or `top` (in place
+    /// of the brand logo).
+    #[serde(default)]
+    pub image_position: ImagePosition,
+    /// A line between the title and the player's name.
+    pub subtitle: Option<String>,
+    /// A sign-off above the footer.
+    pub signature: Option<String>,
+    /// Optional image file shown behind the whole certificate.
+    pub background: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImagePosition {
+    Top,
+    #[default]
+    Bottom,
 }
 
 impl FinalPayload {

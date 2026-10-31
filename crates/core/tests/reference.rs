@@ -9,7 +9,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use advent_core::model::{
-    Brand, DayMeta, Event, FinalPayload, Hint, Keys, Notice, Palettes, RepoConfig, Story, Theme,
+    Brand, DayMeta, Event, FinalPayload, Hint, ImagePosition, Keys, Notice, Palettes, RepoConfig,
+    Story, Theme,
 };
 use serde::Serialize;
 
@@ -141,6 +142,10 @@ fn reference_documents_final_yaml() {
         title: "t".into(),
         message: "m".into(),
         image: Some("i.png".into()),
+        image_position: ImagePosition::Top,
+        subtitle: Some("s".into()),
+        signature: Some("g".into()),
+        background: Some("b.png".into()),
     };
     assert_documented("final-yaml.md", fields(&payload));
 }

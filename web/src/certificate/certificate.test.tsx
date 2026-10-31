@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useProgress } from "@/store";
 import { event, serve, site } from "@/test/fixtures";
 import vectors from "../../../test-vectors.json";
-import { CertificatePanel, wrap } from "./Certificate";
+import { CertificatePanel, CertificateView, wrap } from "./Certificate";
 import { svgToPng } from "./exportPng";
 
 // The first final vector: three words open {"title":"Well done",...}.
@@ -93,6 +93,47 @@ describe("certificate", () => {
       screen.getByRole("button", { name: "Unlock certificate" }),
     );
     expect(await screen.findByRole("alert")).toHaveTextContent("do not open");
+  });
+});
+
+describe("certificate options", () => {
+  it("shows the subtitle above the name and the signature, and the image on top", () => {
+    render(
+      <CertificateView
+        event={threeDays}
+        brandName="Acme"
+        name="Ada"
+        payload={{
+          title: "Well done",
+          message: "Every word.",
+          subtitle: "is hereby recognised for",
+          signature: "The Holiday Committee",
+          image: "UklGRg==",
+          image_position: "top",
+          background: "UklGRg==",
+        }}
+      />,
+    );
+    const svg = screen.getByRole("img", {
+      name: "Certificate for Ada: Well done",
+    });
+    const texts = [...svg.querySelectorAll("text")].map((t) => ({
+      text: t.textContent,
+      y: Number(t.getAttribute("y")),
+    }));
+    const y = (s: string) => texts.find((t) => t.text === s)?.y ?? -1;
+    expect(y("is hereby recognised for")).toBeGreaterThan(y("Well done"));
+    expect(y("Ada")).toBeGreaterThan(y("is hereby recognised for"));
+    expect(y("The Holiday Committee")).toBeGreaterThan(y("Every word."));
+    const images = [...svg.querySelectorAll("image")].map((i) => ({
+      href: i.getAttribute("href") ?? "",
+      y: Number(i.getAttribute("y") ?? 0),
+    }));
+    // The background covers the certificate; the keeper's image is at the top.
+    expect(
+      images.filter((i) => i.href.startsWith("data:image/webp")),
+    ).toHaveLength(2);
+    expect(images.some((i) => i.y === 60)).toBe(true);
   });
 });
 

@@ -18,6 +18,8 @@ message: >
 image: medal.png      # optional, next to final.yaml
 ```
 
+Optional extras: `subtitle` (a line above the name), `signature` (a sign-off at the bottom), `image_position` (`top` to put the image where the logo goes) and `background` (an image behind the whole certificate). See the [final.yaml reference](/reference/final-yaml/).
+
 Then, once every day is sealed:
 
 ```sh

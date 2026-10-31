@@ -22,11 +22,16 @@ export interface SealedFinal {
   ct: string;
 }
 
-/** What the certificate decrypts to. `image` is base64 WebP. */
+/** What the certificate decrypts to. Images are base64 WebP. */
 export interface Certificate {
   title: string;
   message: string;
   image?: string;
+  /** Where `image` goes; "bottom" when absent. */
+  image_position?: "top" | "bottom";
+  subtitle?: string;
+  signature?: string;
+  background?: string;
 }
 
 /**

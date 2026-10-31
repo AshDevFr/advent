@@ -70,6 +70,60 @@ fn keeper_seals_the_certificate_with_the_words_in_order() {
 }
 
 #[test]
+fn keeper_seals_every_certificate_option() {
+    let repo = short_event(None);
+    let final_dir = repo.event_dir().join("final");
+    for name in ["medal.png", "paper.png"] {
+        fs::copy(
+            common::examples().join("day06/hidden.png"),
+            final_dir.join(name),
+        )
+        .unwrap();
+    }
+    fs::write(
+        final_dir.join("final.yaml"),
+        "title: Well done\nmessage: You found every word.\nsubtitle: is hereby recognised for\nsignature: The Holiday Committee\nimage: medal.png\nimage_position: top\nbackground: paper.png\n",
+    )
+    .unwrap();
+    repo.advent()
+        .args(["keeper", "seal", "2026"])
+        .assert()
+        .success();
+
+    let certificate = open_certificate(&repo, &WORDS).unwrap();
+    assert_eq!(
+        certificate.subtitle.as_deref(),
+        Some("is hereby recognised for")
+    );
+    assert_eq!(
+        certificate.signature.as_deref(),
+        Some("The Holiday Committee")
+    );
+    assert_eq!(
+        certificate.image_position,
+        advent_core::model::ImagePosition::Top
+    );
+    for image in [certificate.image.unwrap(), certificate.background.unwrap()] {
+        assert_eq!(&image[..4], b"RIFF", "converted to WebP");
+    }
+}
+
+#[test]
+fn keeper_rejects_an_unknown_image_position() {
+    let repo = short_event(None);
+    fs::write(
+        repo.event_dir().join("final/final.yaml"),
+        "title: t\nmessage: m\nimage_position: middle\n",
+    )
+    .unwrap();
+    repo.advent()
+        .args(["keeper", "seal", "2026"])
+        .assert()
+        .failure()
+        .stderr(contains("image_position"));
+}
+
+#[test]
 fn keeper_refuses_while_a_day_is_unsealed() {
     let repo = short_event(Some(2));
     repo.advent()
