@@ -67,8 +67,9 @@ fn workflow_verifies_builds_then_deploys() {
     let download = position("releases/download/v${version}");
     let verify = position("advent verify --release --released");
     let build = position("advent build");
+    let create = position("pages project create");
     let deploy = position("pages deploy dist");
-    assert!(download < verify && verify < build && build < deploy);
+    assert!(download < verify && verify < build && build < create && create < deploy);
 }
 
 #[test]

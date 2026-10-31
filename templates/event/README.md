@@ -38,7 +38,8 @@ so running it again is harmless.
 
 One-time setup:
 
-1. Create a Cloudflare Pages project (Direct Upload) and note its name.
+1. Pick a Cloudflare Pages project name (it becomes `<name>.pages.dev`); the
+   first deploy creates the project if it does not exist.
 2. In this repository's settings, add the secrets `ADVENT_RELEASE_KEY` (from
    `advent init`), `CLOUDFLARE_API_TOKEN` (Pages: Edit) and
    `CLOUDFLARE_ACCOUNT_ID`, and the variable `CLOUDFLARE_PAGES_PROJECT`.

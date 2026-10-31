@@ -1,6 +1,6 @@
 .PHONY: help build build-release fmt fmt-check lint test check wasm plaintext ci \
 	frontend-install frontend-lint frontend-test frontend-build frontend-ci frontend-dev \
-	changelog changelog-unreleased changelog-release release-prepare dist-plan clean setup-hooks
+	changelog changelog-unreleased changelog-release release-prepare dist-plan demo clean setup-hooks
 
 BLUE := \033[0;34m
 GREEN := \033[0;32m
@@ -103,6 +103,12 @@ release-prepare: ## Bump versions and the changelog (usage: make release-prepare
 	@echo ""
 	@echo "$(GREEN)Release v$(VERSION) prepared.$(NC) Review, then:"
 	@echo "  git commit -am \"chore(release): v$(VERSION)\" && git tag v$(VERSION) && git push --follow-tags"
+
+# ── Public demo ──────────────────────────────────────────────────────────────
+
+demo: frontend-build ## Build the public demo (every sample day open) into demo-dist/
+	cargo build -p advent-cli
+	./scripts/build-demo.sh demo-dist
 
 # ── Misc ─────────────────────────────────────────────────────────────────────
 
