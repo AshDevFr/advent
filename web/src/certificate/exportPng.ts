@@ -17,6 +17,8 @@ export async function svgToPng(svg: SVGSVGElement, scale = 2): Promise<Blob> {
         reject(new Error("the certificate could not be drawn"));
       img.src = url;
     });
+    // Safari can report load before embedded images are decoded.
+    await image.decode?.().catch(() => {});
     const canvas = document.createElement("canvas");
     canvas.width = width * scale;
     canvas.height = height * scale;

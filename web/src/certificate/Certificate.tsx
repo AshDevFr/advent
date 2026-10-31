@@ -130,15 +130,29 @@ export function wrap(text: string, width: number): string[] {
   return lines;
 }
 
-async function asDataUrl(path: string): Promise<string | null> {
+/**
+ * The logo as a PNG data URL. It must be inline (an SVG drawn as an image
+ * loads nothing external), and PNG rather than SVG: Safari shows a nested
+ * SVG data URL inside an SVG as a broken image.
+ */
+async function logoAsPng(path: string, size = 160): Promise<string | null> {
   try {
     const blob = await (await fetch(path)).blob();
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const context = canvas.getContext("2d");
+      if (!context) return null;
+      context.drawImage(img, 0, 0, size, size);
+      return canvas.toDataURL("image/png");
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   } catch {
     return null;
   }
@@ -162,7 +176,7 @@ export function CertificateView({
     api
       .site()
       .then(async (site) =>
-        setLogo(site.brand.logo ? await asDataUrl(site.brand.logo) : null),
+        setLogo(site.brand.logo ? await logoAsPng(site.brand.logo) : null),
       )
       .catch(() => {});
   }, []);
@@ -179,12 +193,18 @@ export function CertificateView({
   const year = event.start.slice(0, 4);
   const heading = event.headline ?? event.title;
   const edition = heading.includes(year) ? heading : `${heading} · ${year}`;
+  // Laid out from the top down, so a title that wraps to two lines pushes
+  // the name and message down instead of running into them.
   const title = wrap(payload.title, 30)
     .slice(0, 2)
-    .map((line, i, all) => ({ line, y: 280 - (all.length - 1) * 30 + i * 62 }));
+    .map((line, i) => ({ line, y: 300 + i * 66 }));
+  const nameY = title[title.length - 1].y + 110;
   const message = wrap(payload.message, 60)
-    .slice(0, 6)
-    .map((line, i) => ({ line, y: 440 + i * 40 }));
+    .slice(0, 5)
+    .map((line, i) => ({ line, y: nameY + 90 + i * 40 }));
+
+  // The keeper's image sits under the message, above the footer.
+  const imageY = Math.min((message[message.length - 1]?.y ?? nameY) + 40, 630);
 
   async function exportImage() {
     if (svgRef.current) {
@@ -219,7 +239,7 @@ export function CertificateView({
         {logo && <image href={logo} x="560" y="70" width="80" height="80" />}
         <text
           x="600"
-          y="190"
+          y="200"
           textAnchor="middle"
           fontSize="28"
           fill={colours.muted}
@@ -239,9 +259,17 @@ export function CertificateView({
             {line}
           </text>
         ))}
+        <line
+          x1="540"
+          x2="660"
+          y1={nameY - 70}
+          y2={nameY - 70}
+          stroke={colours.primary}
+          strokeWidth="2"
+        />
         <text
           x="600"
-          y="360"
+          y={nameY}
           textAnchor="middle"
           fontSize="44"
           fill={colours.text}
@@ -264,7 +292,7 @@ export function CertificateView({
           <image
             href={`data:image/webp;base64,${payload.image}`}
             x="500"
-            y="640"
+            y={imageY}
             width="200"
             height="120"
             preserveAspectRatio="xMidYMid meet"
