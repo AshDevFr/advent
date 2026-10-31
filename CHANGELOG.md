@@ -2,6 +2,18 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.4.0] - 2026-10-31
+
+### Features
+
+- Theme each calendar's landing card and give doors their own artwork
+- Keep a faded door picture on open and solved doors
+- Let logos and backgrounds have a version for dark pages
+
+### Bug Fixes
+
+- Centre the countdown's numbers over their units at equal widths
+
 ## [0.3.1] - 2026-10-31
 
 ### Bug Fixes
