@@ -21,9 +21,6 @@ impl Clock for FixedClock {
     }
 }
 
-/// Hints per day the schedule can release (PRD: 1 to 2 hints).
-pub const MAX_HINTS: u8 = 2;
-
 /// The first instant of `date` in `tz`. Where a DST change skips midnight,
 /// the day starts at the first local time that exists.
 fn start_of_day(tz: Tz, date: NaiveDate) -> DateTime<Utc> {
@@ -67,20 +64,22 @@ pub fn is_released(event: &Event, day: u32, now: DateTime<Utc>) -> bool {
     day <= event.unlocked || now >= start_of_day(event.timezone, day_date(event, day))
 }
 
-/// How many of `day`'s hints are due at `now`: one at each of the two local
-/// midnights after its release. Unlocked days have all hints due. Callers
-/// cap the result at the number of hints the day actually has.
-pub fn hints_due(event: &Event, day: u32, now: DateTime<Utc>) -> u8 {
+/// How many of a day's hints are due at `now`, given each hint's delay in
+/// days after the door opens (`Event::hint_days`); a hint is due from local
+/// midnight on that date. Unlocked days have every hint due. The delays do
+/// not decrease, so the due hints are always the first ones.
+pub fn hints_due(event: &Event, day: u32, after: &[u32], now: DateTime<Utc>) -> usize {
     if !is_released(event, day, now) {
         return 0;
     }
     if day <= event.unlocked {
-        return MAX_HINTS;
+        return after.len();
     }
     let date = day_date(event, day);
-    (1..=MAX_HINTS)
-        .take_while(|n| now >= start_of_day(event.timezone, date + Days::new(u64::from(*n))))
-        .count() as u8
+    after
+        .iter()
+        .take_while(|days| now >= start_of_day(event.timezone, date + Days::new(u64::from(**days))))
+        .count()
 }
 
 #[cfg(test)]
@@ -97,6 +96,7 @@ mod tests {
             every: 1,
             weekdays: false,
             dates: None,
+            hint_after: vec![1, 2],
             story: Default::default(),
         }
     }
@@ -115,21 +115,21 @@ mod tests {
     #[test]
     fn model_schedule_hints_follow_the_next_two_midnights() {
         let e = event("2026-12-01", 0);
-        assert_eq!(hints_due(&e, 5, at("2026-12-04T22:00:00Z")), 0);
-        assert_eq!(hints_due(&e, 5, at("2026-12-05T12:00:00Z")), 0);
-        assert_eq!(hints_due(&e, 5, at("2026-12-05T23:00:00Z")), 1);
-        assert_eq!(hints_due(&e, 5, at("2026-12-06T23:00:00Z")), 2);
-        assert_eq!(hints_due(&e, 5, at("2027-01-15T00:00:00Z")), 2);
+        assert_eq!(hints_due(&e, 5, &[1, 2], at("2026-12-04T22:00:00Z")), 0);
+        assert_eq!(hints_due(&e, 5, &[1, 2], at("2026-12-05T12:00:00Z")), 0);
+        assert_eq!(hints_due(&e, 5, &[1, 2], at("2026-12-05T23:00:00Z")), 1);
+        assert_eq!(hints_due(&e, 5, &[1, 2], at("2026-12-06T23:00:00Z")), 2);
+        assert_eq!(hints_due(&e, 5, &[1, 2], at("2027-01-15T00:00:00Z")), 2);
     }
 
     #[test]
     fn model_schedule_hints_across_dst_change() {
         // Paris leaves summer time on 2026-10-25: midnight moves from 22:00Z to 23:00Z.
         let e = event("2026-10-24", 0);
-        assert_eq!(hints_due(&e, 1, at("2026-10-24T21:59:59Z")), 0);
-        assert_eq!(hints_due(&e, 1, at("2026-10-24T22:00:00Z")), 1);
-        assert_eq!(hints_due(&e, 1, at("2026-10-25T22:59:59Z")), 1);
-        assert_eq!(hints_due(&e, 1, at("2026-10-25T23:00:00Z")), 2);
+        assert_eq!(hints_due(&e, 1, &[1, 2], at("2026-10-24T21:59:59Z")), 0);
+        assert_eq!(hints_due(&e, 1, &[1, 2], at("2026-10-24T22:00:00Z")), 1);
+        assert_eq!(hints_due(&e, 1, &[1, 2], at("2026-10-25T22:59:59Z")), 1);
+        assert_eq!(hints_due(&e, 1, &[1, 2], at("2026-10-25T23:00:00Z")), 2);
     }
 
     #[test]
@@ -139,7 +139,7 @@ mod tests {
         let march = at("2026-03-01T12:00:00Z");
         for day in 1..=7 {
             assert!(is_released(&e, day, march), "day {day}");
-            assert_eq!(hints_due(&e, day, march), 2);
+            assert_eq!(hints_due(&e, day, &[1, 2], march), 2);
         }
         assert!(!is_released(&e, 8, march));
         assert_eq!(release_time(&e, 7), None);
@@ -179,12 +179,22 @@ mod tests {
             is_released(&e, 2, at("2026-12-02T23:00:00Z")),
             "Dec 3, 00:00 Paris"
         );
-        assert_eq!(hints_due(&e, 2, at("2026-12-03T12:00:00Z")), 0);
+        assert_eq!(hints_due(&e, 2, &[1, 2], at("2026-12-03T12:00:00Z")), 0);
         assert_eq!(
-            hints_due(&e, 2, at("2026-12-03T23:00:00Z")),
+            hints_due(&e, 2, &[1, 2], at("2026-12-03T23:00:00Z")),
             1,
             "Dec 4, 00:00 Paris"
         );
+    }
+
+    #[test]
+    fn model_schedule_hints_follow_their_own_delay() {
+        let e = event("2026-12-01", 0);
+        // Day 5 opens Dec 5 (Paris); hints after 0 and 3 days.
+        assert_eq!(hints_due(&e, 5, &[0, 3], at("2026-12-04T22:59:59Z")), 0);
+        assert_eq!(hints_due(&e, 5, &[0, 3], at("2026-12-04T23:00:00Z")), 1);
+        assert_eq!(hints_due(&e, 5, &[0, 3], at("2026-12-07T22:59:59Z")), 1);
+        assert_eq!(hints_due(&e, 5, &[0, 3], at("2026-12-07T23:00:00Z")), 2);
     }
 
     #[test]

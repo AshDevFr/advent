@@ -120,14 +120,8 @@ fn build_event(
                 sealed_path.display()
             );
         }
-        let kind = publish_day(
-            n,
-            &fs::read(&sealed_path)?,
-            hints_due(&event, n, now),
-            release,
-            &site,
-        )
-        .with_context(|| format!("day {n}"))?;
+        let kind = publish_day(&event, n, &fs::read(&sealed_path)?, now, release, &site)
+            .with_context(|| format!("day {n}"))?;
         released.push(n);
         types.insert(n, kind);
     }
@@ -160,13 +154,16 @@ fn build_event(
 }
 
 fn publish_day(
+    event: &Event,
     n: u32,
     sealed_json: &[u8],
-    hints_due: u8,
+    now: DateTime<Utc>,
     release: &[x25519::Identity],
     site: &Path,
 ) -> anyhow::Result<String> {
     let sealed = format::read_sealed_day(sealed_json)?;
+    let overrides: Vec<Option<u32>> = sealed.hints.iter().map(|h| h.after).collect();
+    let due = hints_due(event, n, &event.hint_days(&overrides)?, now);
     let day_key = wrap::unwrap_key(&sealed.day_key, release)
         .context("the day key does not open with ADVENT_RELEASE_KEY")?;
     let bundle: Bundle = serde_json::from_slice(&primitives::open_bundle(
@@ -199,7 +196,7 @@ fn publish_day(
     }
 
     let mut hints = Vec::new();
-    for hint in sealed.hints.iter().take(usize::from(hints_due)) {
+    for hint in sealed.hints.iter().take(due) {
         let key = wrap::unwrap_key(&hint.key, release)?;
         hints.push(primitives::open_hint(&key, hint.iv, &hint.ct)?);
     }

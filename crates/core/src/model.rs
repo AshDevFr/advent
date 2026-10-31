@@ -89,6 +89,10 @@ pub struct Event {
     /// Explicit date of each day, instead of `every` / `weekdays`. Its
     /// length is `days`, it is strictly increasing, and it begins at `start`.
     pub dates: Option<Vec<NaiveDate>>,
+    /// Default timing of each day's hints: days after the door opens, at
+    /// local midnight (0 = with the door). One entry per possible hint.
+    #[serde(default = "default_hint_after")]
+    pub hint_after: Vec<u32>,
     #[serde(default)]
     pub story: Story,
 }
@@ -96,6 +100,13 @@ pub struct Event {
 fn default_every() -> u32 {
     1
 }
+
+fn default_hint_after() -> Vec<u32> {
+    vec![1, 2]
+}
+
+/// The most hints a day can have (PRD: 1 to 2).
+pub const MAX_HINTS: usize = 2;
 
 fn is_weekend(date: NaiveDate) -> bool {
     matches!(date.weekday(), Weekday::Sat | Weekday::Sun)
@@ -133,7 +144,42 @@ impl Event {
         Ok(event)
     }
 
+    /// When each of a day's hints is due, in days after its door opens:
+    /// the hint's own `after` if set, else the event default. Hints are
+    /// revealed in order, so the result must not decrease.
+    pub fn hint_days(&self, overrides: &[Option<u32>]) -> Result<Vec<u32>, ModelError> {
+        let days: Vec<u32> = overrides
+            .iter()
+            .enumerate()
+            .map(|(i, after)| after.unwrap_or(self.hint_after[i.min(self.hint_after.len() - 1)]))
+            .collect();
+        if days.windows(2).any(|w| w[1] < w[0]) {
+            return Err(invalid(
+                "hints",
+                format!(
+                    "come out of order ({days:?} days after the door); hints are revealed in order, so a later hint cannot be due sooner"
+                ),
+            ));
+        }
+        Ok(days)
+    }
+
     fn validate_schedule(&self) -> Result<(), ModelError> {
+        if self.hint_after.len() != MAX_HINTS {
+            return Err(invalid(
+                "hint_after",
+                format!(
+                    "needs {MAX_HINTS} entries, one per hint, found {}",
+                    self.hint_after.len()
+                ),
+            ));
+        }
+        if self.hint_after[1] < self.hint_after[0] {
+            return Err(invalid(
+                "hint_after",
+                "must not decrease: hints are revealed in order",
+            ));
+        }
         if self.every == 0 {
             return Err(invalid("every", "must be at least 1"));
         }
@@ -211,7 +257,42 @@ pub struct DayMeta {
     /// Accepted answers; the word is locked once per answer.
     pub answers: Vec<String>,
     pub word: String,
-    pub hints: Vec<String>,
+    pub hints: Vec<Hint>,
+}
+
+/// One hint: plain text (timed by the event's `hint_after`) or
+/// `{ text, after }` to set its own delay in days after the door opens.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "HintRepr")]
+pub struct Hint {
+    pub text: String,
+    pub after: Option<u32>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum HintRepr {
+    Text(String),
+    Timed(TimedHint),
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TimedHint {
+    text: String,
+    after: Option<u32>,
+}
+
+impl From<HintRepr> for Hint {
+    fn from(repr: HintRepr) -> Self {
+        match repr {
+            HintRepr::Text(text) => Hint { text, after: None },
+            HintRepr::Timed(t) => Hint {
+                text: t.text,
+                after: t.after,
+            },
+        }
+    }
 }
 
 impl DayMeta {
@@ -220,7 +301,7 @@ impl DayMeta {
         if meta.answers.is_empty() {
             return Err(invalid("answers", "needs at least one accepted answer"));
         }
-        if !(1..=2).contains(&meta.hints.len()) {
+        if !(1..=MAX_HINTS).contains(&meta.hints.len()) {
             return Err(invalid(
                 "hints",
                 format!("needs 1 or 2 hints, found {}", meta.hints.len()),
@@ -359,6 +440,7 @@ mod tests {
         .unwrap();
         assert_eq!(day.kind, "teaser");
         assert_eq!(day.answers.len(), 2);
+        assert_eq!(day.hints[0].text, "Think big.");
 
         let brand = Brand::from_yaml(
             "name: Acme Advent\nlogo: logo.svg\npalette:\n  light:\n    primary: '#05a'\n  dark:\n    primary: '#8cf'\n",
@@ -544,6 +626,39 @@ mod tests {
         // 2026-12-05 is a Saturday.
         let saturday = "title: t\ntimezone: UTC\nstart: 2026-12-05\ndays: 3\nweekdays: true\n";
         assert_eq!(field(saturday), "start");
+    }
+
+    #[test]
+    fn model_hints_take_plain_text_or_their_own_timing() {
+        let meta = DayMeta::from_yaml(
+            "title: t\ntype: code\nanswers: [a]\nword: w\nhints:\n  - {text: Look again., after: 0}\n  - Think big.\n",
+        )
+        .unwrap();
+        assert_eq!(meta.hints[0].text, "Look again.");
+        assert_eq!(meta.hints[0].after, Some(0));
+        assert_eq!(meta.hints[1].text, "Think big.");
+        assert_eq!(meta.hints[1].after, None);
+
+        let event = Event::from_yaml(BASE).unwrap();
+        assert_eq!(event.hint_after, [1, 2], "default");
+        assert_eq!(event.hint_days(&[Some(0), None]).unwrap(), [0, 2]);
+        assert_eq!(event.hint_days(&[None]).unwrap(), [1]);
+    }
+
+    #[test]
+    fn model_hint_timing_is_validated() {
+        let field = |yaml: &str| match Event::from_yaml(yaml) {
+            Err(ModelError::Invalid { field, .. }) => field,
+            other => panic!("expected a validation error, got {other:?}"),
+        };
+        assert_eq!(field(&format!("{BASE}hint_after: [1]\n")), "hint_after");
+        assert_eq!(field(&format!("{BASE}hint_after: [3, 1]\n")), "hint_after");
+
+        let event = Event::from_yaml(&format!("{BASE}hint_after: [0, 3]\n")).unwrap();
+        assert!(matches!(
+            event.hint_days(&[Some(5), None]),
+            Err(ModelError::Invalid { field: "hints", .. })
+        ));
     }
 
     #[test]

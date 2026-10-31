@@ -9,6 +9,10 @@ days: 24
 # or list each day's date (as many as `days`, starting with `start`):
 #   dates: [2026-12-01, 2026-12-03, 2026-12-08]
 # `advent schedule` prints the result.
+
+# When hints appear, in days after a door opens (at local midnight; 0 means
+# with the door). A hint in meta.yaml can set its own: {text: ..., after: 0}.
+hint_after: [1, 2]
 story:
   # Optional display headline; the title above is used when absent.
   # title: "The Longest Night Hunt"

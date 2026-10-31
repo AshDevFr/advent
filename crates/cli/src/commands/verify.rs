@@ -234,7 +234,7 @@ fn check_against_source(
     {
         let opened =
             primitives::open_hint(key, hint.iv, &hint.ct).context("a hint does not open")?;
-        if &opened != text {
+        if opened != text.text {
             bail!("a sealed hint does not match the source (re-seal the day)");
         }
     }

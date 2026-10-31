@@ -6,7 +6,7 @@
 use std::path::Path;
 
 use advent_core::format::{self, Bundle, Encrypted, SCHEMA, SealedDay, SealedHint};
-use advent_core::model::DayMeta;
+use advent_core::model::{DayMeta, Event};
 use advent_core::primitives::{self, WordLock};
 use advent_core::wrap::{self, x25519};
 use advent_core::{GuessableReason, guessable, is_normalized_word, normalize};
@@ -24,7 +24,7 @@ pub fn run(day_dir: &Path) -> anyhow::Result<()> {
     let editors = wrap::parse_recipients(&config.keys.editors)?;
     let plain = day::load_plaintext(&day.path)?;
 
-    let output = seal_day(day.number, &plain, &release, &editors)?;
+    let output = seal_day(&day.event, day.number, &plain, &release, &editors)?;
     output.write(&day.path)?;
 
     println!(
@@ -54,6 +54,7 @@ impl Sealed {
 /// Seal a day's plaintext with fresh keys. Used by `seal`, and by
 /// `reseal --all` with plaintext taken from the source copy.
 pub fn seal_day(
+    event: &Event,
     number: u32,
     plain: &Plaintext,
     release: &[x25519::Recipient],
@@ -84,6 +85,8 @@ pub fn seal_day(
     for answer in &answers {
         warn_if_guessable(answer);
     }
+    let overrides: Vec<Option<u32>> = meta.hints.iter().map(|h| h.after).collect();
+    event.hint_days(&overrides)?;
 
     let converted = images::convert(&plain.files, &plain.puzzle)?;
     if converted.total_bytes > images::DAY_IMAGE_BUDGET {
@@ -119,8 +122,9 @@ pub fn seal_day(
         let iv = random::bytes();
         hints.push(SealedHint {
             iv,
-            ct: primitives::seal_hint(key, iv, hint),
+            ct: primitives::seal_hint(key, iv, &hint.text),
             key: wrap::wrap_key(key, release)?,
+            after: hint.after,
         });
     }
 
@@ -204,7 +208,10 @@ fn round_trip(
     );
     for ((hint, key), sealed_hint) in meta.hints.iter().zip(&keys.hint_keys).zip(&sealed.hints) {
         let text = primitives::open_hint(key, sealed_hint.iv, &sealed_hint.ct)?;
-        ensure!(&text == hint, "a hint does not decrypt to what was sealed");
+        ensure!(
+            text == hint.text,
+            "a hint does not decrypt to what was sealed"
+        );
         ensure!(!sealed_hint.key.is_empty(), "a hint key was not wrapped");
     }
     ensure!(!sealed.day_key.is_empty(), "day key was not wrapped");

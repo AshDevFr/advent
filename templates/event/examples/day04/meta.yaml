@@ -3,6 +3,9 @@ type: cipher
 answers:
   - snowflake
 word: the
+# A hint can set its own timing in days after the door opens; plain text
+# uses the event's hint_after.
 hints:
-  - Move every letter three places back.
+  - text: Move every letter three places back.
+    after: 0
   - V becomes S.

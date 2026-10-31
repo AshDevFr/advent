@@ -61,6 +61,11 @@ pub struct SealedHint {
     /// The hint key, age-wrapped to the release recipients.
     #[serde(with = "b64")]
     pub key: Vec<u8>,
+    /// Days after the door opens when this hint is due, if the author set
+    /// it; otherwise the event's `hint_after` applies. Plain on purpose: the
+    /// build has only the release key, and the timing reveals nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after: Option<u32>,
 }
 
 /// The sealed certificate payload of an event.
@@ -292,6 +297,7 @@ mod tests {
                 iv: [10; 12],
                 ct: vec![11],
                 key: vec![12],
+                after: None,
             }],
         }
     }

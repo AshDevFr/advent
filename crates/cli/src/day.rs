@@ -25,6 +25,7 @@ const FILES_PREFIX: &str = "files/";
 pub struct DayDir {
     pub path: PathBuf,
     pub number: u32,
+    pub event: Event,
 }
 
 /// Resolve `events/<id>/dayNN` and check `NN` fits the event.
@@ -56,7 +57,11 @@ pub fn locate(day_dir: &Path) -> anyhow::Result<DayDir> {
             event.days
         );
     }
-    Ok(DayDir { path, number })
+    Ok(DayDir {
+        path,
+        number,
+        event,
+    })
 }
 
 /// The plaintext of a day: its meta, its puzzle, and every file in the folder.

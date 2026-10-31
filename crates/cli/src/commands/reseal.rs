@@ -62,7 +62,7 @@ fn reseal_day(
     if all {
         let day = day::locate(day_dir)?;
         let plain = Plaintext::from_files(source.files)?;
-        return seal::seal_day(day.number, &plain, release, editors)?.write(day_dir);
+        return seal::seal_day(&day.event, day.number, &plain, release, editors)?.write(day_dir);
     }
 
     let mut sealed = format::read_sealed_day(&fs::read(day_dir.join(SEALED_FILE))?)
