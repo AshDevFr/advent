@@ -121,6 +121,98 @@ fn init_gitignore_keeps_plaintext_out_and_sealed_files_in() {
 }
 
 #[test]
+fn init_static_edition_deploys_to_pages_without_docker_files() {
+    let tmp = tempfile::tempdir().unwrap();
+    let repo = tmp.path().join("calendar");
+    init(&repo);
+    assert!(repo.join(".github/workflows/build.yml").is_file());
+    for file in ["Dockerfile", ".dockerignore", "docker-compose.example.yml"] {
+        assert!(
+            !repo.join(file).exists(),
+            "{file} belongs to the company edition"
+        );
+    }
+    let readme = fs::read_to_string(repo.join("README.md")).unwrap();
+    assert!(readme.contains("## Getting started"));
+    assert!(readme.contains(&format!(
+        "releases/download/v{}/",
+        env!("CARGO_PKG_VERSION")
+    )));
+    assert!(
+        readme.contains("events/2026/day01"),
+        "the event id is filled in"
+    );
+}
+
+#[test]
+fn init_company_edition_builds_an_image_named_after_the_git_remote() {
+    let tmp = tempfile::tempdir().unwrap();
+    let repo = tmp.path().join("calendar");
+    // A freshly cloned, empty repository: only .git is there.
+    fs::create_dir_all(&repo).unwrap();
+    let git = |args: &[&str]| {
+        assert!(
+            Std::new("git")
+                .args(args)
+                .current_dir(&repo)
+                .status()
+                .unwrap()
+                .success()
+        )
+    };
+    git(&["init", "-q"]);
+    git(&[
+        "remote",
+        "add",
+        "origin",
+        "git@github.com:Acme/Advent-Calendar.git",
+    ]);
+    let out = advent()
+        .args(["init", repo.to_str().unwrap(), "--event", "2026"])
+        .args(["--edition", "company"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    for file in [
+        "Dockerfile",
+        ".dockerignore",
+        ".github/workflows/image.yml",
+        "advent.yaml",
+        "events/2026/event.yaml",
+    ] {
+        assert!(repo.join(file).is_file(), "missing {file}");
+    }
+    assert!(!repo.join(".github/workflows/build.yml").exists());
+    let compose = fs::read_to_string(repo.join("docker-compose.example.yml")).unwrap();
+    assert!(
+        compose.contains("image: ghcr.io/acme/advent-calendar:latest"),
+        "{compose}"
+    );
+    let readme = fs::read_to_string(repo.join("README.md")).unwrap();
+    assert!(readme.contains("advent serve"));
+}
+
+#[test]
+fn init_company_edition_marks_the_image_to_fill_in_without_a_remote() {
+    let tmp = tempfile::tempdir().unwrap();
+    let repo = tmp.path().join("calendar");
+    advent()
+        .args(["init", repo.to_str().unwrap(), "--edition", "company"])
+        .assert()
+        .success();
+    let compose = fs::read_to_string(repo.join("docker-compose.example.yml")).unwrap();
+    assert!(
+        compose.contains("image: ghcr.io/OWNER/REPO:latest"),
+        "{compose}"
+    );
+}
+
+#[test]
 fn init_refuses_a_non_empty_directory() {
     let tmp = tempfile::tempdir().unwrap();
     fs::write(tmp.path().join("existing.txt"), "keep me").unwrap();

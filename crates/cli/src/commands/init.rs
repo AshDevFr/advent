@@ -1,5 +1,6 @@
-//! `advent init`: write a new event repo from the embedded template and give
-//! it fresh key pairs.
+//! `advent init`: write a new event repo from the embedded templates and give
+//! it fresh key pairs. Every repo gets the common files; the edition adds how
+//! it is published: a static site deployed by CI, or a server image.
 
 use std::fs;
 use std::path::Path;
@@ -11,13 +12,32 @@ use include_dir::{Dir, DirEntry, include_dir};
 
 use crate::config::EDITORS_KEY_FILE;
 
-static TEMPLATE: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../templates/event");
+static COMMON: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../templates/common");
+static STATIC: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../templates/static");
+static COMPANY: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../templates/company");
+
+/// How the calendar is published.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum Edition {
+    /// A static site, built and deployed by CI (Cloudflare Pages by default).
+    Static,
+    /// `advent serve` in a Docker image, for invited players.
+    Company,
+}
+
+/// Image name for a fresh company repo, until its owner sets it.
+const IMAGE_PLACEHOLDER: &str = "ghcr.io/OWNER/REPO";
 
 /// Folder name standing for the event id inside the template.
 const EVENT_PLACEHOLDER: &str = "EVENT";
 
-pub fn run(dir: &Path, event: Option<&str>) -> anyhow::Result<()> {
-    if dir.exists() && fs::read_dir(dir)?.next().is_some() {
+pub fn run(dir: &Path, event: Option<&str>, edition: Edition) -> anyhow::Result<()> {
+    // A freshly cloned empty repository holds only .git, and is fine.
+    if dir.exists()
+        && fs::read_dir(dir)?
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name() != ".git")
+    {
         bail!(
             "{} is not empty; `advent init` only writes into an empty directory",
             dir.display()
@@ -44,10 +64,19 @@ pub fn run(dir: &Path, event: Option<&str>) -> anyhow::Result<()> {
         ("{{release}}", release_public),
         ("{{event}}", event.clone()),
         ("{{start}}", format!("{start_year}-12-01")),
+        (
+            "{{image}}",
+            image_name(dir).unwrap_or(IMAGE_PLACEHOLDER.into()),
+        ),
     ];
 
     fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
-    write_dir(&TEMPLATE, dir, &event, &vars)?;
+    write_dir(&COMMON, dir, &event, &vars)?;
+    let edition_dir = match edition {
+        Edition::Static => &STATIC,
+        Edition::Company => &COMPANY,
+    };
+    write_dir(edition_dir, dir, &event, &vars)?;
 
     let key_path = dir.join(EDITORS_KEY_FILE);
     fs::write(
@@ -65,8 +94,17 @@ pub fn run(dir: &Path, event: Option<&str>) -> anyhow::Result<()> {
         dir.display()
     );
     println!();
-    println!("Release key (shown once, not saved anywhere). Store it as the CI secret");
-    println!("ADVENT_RELEASE_KEY now; without it no day can ever be released:");
+    match edition {
+        Edition::Static => {
+            println!("Release key (shown once, not saved anywhere). Store it as the CI secret");
+            println!("ADVENT_RELEASE_KEY now; without it no day can ever be released:");
+        }
+        Edition::Company => {
+            println!("Release key (shown once, not saved anywhere). Keep it in a password");
+            println!("manager and give it to the server as ADVENT_RELEASE_KEY; without it no");
+            println!("day can ever be released:");
+        }
+    }
     println!();
     println!("{release_secret}");
     println!();
@@ -96,7 +134,9 @@ fn write_dir(
                 if let Some(parent) = target.parent() {
                     fs::create_dir_all(parent)?;
                 }
-                let is_template_text = target.extension().is_some_and(|e| e == "yaml");
+                let is_template_text = target
+                    .extension()
+                    .is_some_and(|e| e == "yaml" || e == "yml" || e == "md");
                 match file.contents_utf8().filter(|_| is_template_text) {
                     Some(text) => {
                         let rendered = vars
@@ -110,6 +150,31 @@ fn write_dir(
         }
     }
     Ok(())
+}
+
+/// `ghcr.io/<owner>/<repo>` when `dir` is a git checkout of a GitHub
+/// repository: the name the image workflow pushes to.
+fn image_name(dir: &Path) -> Option<String> {
+    let out = std::process::Command::new("git")
+        .args(["-C"])
+        .arg(dir)
+        .args(["remote", "get-url", "origin"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let url = String::from_utf8(out.stdout).ok()?;
+    let path = url
+        .trim()
+        .strip_prefix("git@github.com:")
+        .or_else(|| url.trim().strip_prefix("https://github.com/"))?;
+    let path = path.strip_suffix(".git").unwrap_or(path);
+    let (owner, repo) = path.split_once('/')?;
+    if owner.is_empty() || repo.is_empty() || repo.contains('/') {
+        return None;
+    }
+    Some(format!("ghcr.io/{owner}/{repo}").to_lowercase())
 }
 
 #[cfg(unix)]

@@ -27,6 +27,9 @@ enum Command {
         /// Event id, used as its folder name under events/ (default: current year).
         #[arg(long)]
         event: Option<String>,
+        /// How the calendar is published.
+        #[arg(long, value_enum, default_value = "static")]
+        edition: commands::init::Edition,
     },
     /// Seal a day folder into sealed.json and source.age.
     Seal { day_dir: PathBuf },
@@ -129,7 +132,11 @@ fn main() -> anyhow::Result<()> {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
     match Cli::parse().command {
-        Command::Init { dir, event } => commands::init::run(&dir, event.as_deref()),
+        Command::Init {
+            dir,
+            event,
+            edition,
+        } => commands::init::run(&dir, event.as_deref(), edition),
         Command::Seal { day_dir } => commands::seal::run(&day_dir),
         Command::UnsealSource { day_dir, force } => commands::unseal_source::run(&day_dir, force),
         Command::Reseal { event, all } => commands::reseal::run(event.as_deref(), all),

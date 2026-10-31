@@ -10,7 +10,8 @@ The PRD and phase specs in `.specs/docs/` are the source of truth.
   release schedule. Must build for `wasm32-unknown-unknown`: no tokio, no filesystem, bytes in and out.
 - `crates/cli` (`advent-cli`, binary `advent`): commands, figment config, embedded template and frontend.
 - `web/`: React + Vite + TypeScript frontend (phase 2).
-- `templates/event/`: the event repo template `advent init` writes, with plaintext sample days in `examples/`.
+- `templates/`: what `advent init` writes: `common/` for every repo (with plaintext sample days in
+  `examples/`), plus `static/` (Pages deploy) or `company/` (server image) by `--edition`.
 - `fixtures/`: test-only inputs.
 - `test-vectors.json`: shared by Rust and TypeScript tests; generated with WebCrypto, not by our own code.
 

@@ -91,7 +91,7 @@ impl Repo {
 }
 
 pub fn examples() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../templates/event/examples")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../templates/common/examples")
 }
 
 pub fn copy_dir(from: &Path, to: &Path) {

@@ -27,7 +27,7 @@ Writing and sealing days, brands, themes, schedules, hints and the certificate a
 
 ## Build the calendar image
 
-The server runs from a Docker image that holds the engine and your sealed files, built from your event repository. `advent init` writes what it needs:
+The server runs from a Docker image that holds the engine and your sealed files, built from your event repository. `advent init --edition company` writes what it needs:
 
 - `Dockerfile`: `FROM ghcr.io/ashdevfr/advent:<engine>`, copying the repository into `/event`.
 - `.dockerignore`: lets in only `advent.yaml`, the brand, each event's settings and theme, and sealed files. Puzzles, answers, source copies and `editors.key` stay out, even when you build from a working copy that has them.
@@ -51,7 +51,7 @@ ADVENT_ADMIN__PASSWORD=a-long-random-password
 ADVENT_MAIL__SMTP__PASSWORD=...
 ```
 
-Then `docker compose up -d`. The container listens on port 8080; put it behind your usual reverse proxy for HTTPS, and set `ADVENT_TRUST_PROXY=true` so limits apply per visitor rather than to the proxy. Every setting is listed in the [server settings](/reference/server/).
+Then `docker compose up -d`. The container listens on port 8080; put it behind your usual reverse proxy for HTTPS, and set `ADVENT_TRUST_PROXY=true` so limits apply per visitor rather than to the proxy. Every setting is listed in the [server settings](/reference/server/); plain Docker, Kubernetes and backups are in [Self-hosting](/guides/self-hosting/).
 
 Before it listens, the server opens every sealed day, hint and the certificate with the release key. A wrong key or a broken file stops it at once, with the reason in the log, rather than on the morning a day opens.
 

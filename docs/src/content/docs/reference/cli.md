@@ -9,9 +9,10 @@ Commands that work on a repository find it from the current folder upwards (the 
 
 ### `advent init <DIR>`
 
-Create an event repository in an empty or new folder: `advent.yaml` with fresh key pairs, a brand, a first event, example days, the `.gitignore` and the deploy workflow. Prints the release key once and writes the editors key to `editors.key`.
+Create an event repository in an empty or new folder (one holding only `.git`, as after cloning an empty repository, is fine): `advent.yaml` with fresh key pairs, a brand, a first event, example days, the `.gitignore` and a README with the first steps. Prints the release key once and writes the editors key to `editors.key`.
 
 - `--event <ID>`: the first event's id (default: the current year). An event named after a year starts on December 1st of that year.
+- `--edition <static|company>`: how the calendar is published (default `static`). `static` adds the workflow that builds and deploys the site to Cloudflare Pages. `company` adds the `Dockerfile`, `.dockerignore`, `docker-compose.example.yml` and the image workflow for [`advent serve`](/guides/company/); when the folder is a clone of a GitHub repository, the compose file already names its image, `ghcr.io/<owner>/<repo>`. See [Self-hosting](/guides/self-hosting/).
 
 ### `advent seal <DAY_DIR>`
 

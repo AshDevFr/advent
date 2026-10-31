@@ -51,8 +51,16 @@ advent init my-calendar --event 2026     # prints the release key once: keep it
 cd my-calendar
 cp -R examples/day01 events/2026/day01   # start from a sample, then edit it
 advent seal events/2026/day01            # writes sealed.json and source.age
+advent preview --all-open                # look at it on http://127.0.0.1:4321
 advent schedule                          # when each door and hint opens
 ```
+
+For invited players with progress on a server, start with
+`advent init my-calendar --edition company` instead: it writes a Docker setup
+for `advent serve` rather than the Pages workflow. Either way, the new
+repository's README walks through the first steps, and
+[Self-hosting](https://advent-engine.4sh.dev/guides/self-hosting/) covers
+running it on your own machines.
 
 Commit, then in your repository's settings add the secrets
 `ADVENT_RELEASE_KEY`, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` and

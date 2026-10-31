@@ -27,16 +27,16 @@ echo "== engine image"
 docker build -q -t "$engine" "$root" > /dev/null
 
 echo "== sealed sample event"
-"$advent" init "$work/repo" --event 2026 > "$work/init.out"
+"$advent" init "$work/repo" --event 2026 --edition company > "$work/init.out"
 release_key=$(grep '^AGE-SECRET-KEY-1' "$work/init.out")
 cd "$work/repo"
 sed -i.bak 's/^days: 24/days: 7/' events/2026/event.yaml && rm events/2026/event.yaml.bak
 for n in 1 2 3 4 5 6 7; do
-  cp -R "$root/templates/event/examples/day0$n" "events/2026/day0$n"
+  cp -R "$root/templates/common/examples/day0$n" "events/2026/day0$n"
   "$advent" seal "events/2026/day0$n" > /dev/null
 done
 mkdir -p events/2026/final
-cp "$root/templates/event/examples/final/final.yaml" events/2026/final/
+cp "$root/templates/common/examples/final/final.yaml" events/2026/final/
 "$advent" keeper seal 2026 > /dev/null
 # The plaintext stays in the folder, as in an author's working copy.
 test -f events/2026/day01/puzzle.md || fail "expected plaintext in the working copy"

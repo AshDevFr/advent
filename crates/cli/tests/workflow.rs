@@ -11,7 +11,7 @@ use common::Repo;
 fn workflow_text() -> String {
     fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../templates/event/.github/workflows/build.yml"),
+            .join("../../templates/static/.github/workflows/build.yml"),
     )
     .unwrap()
 }

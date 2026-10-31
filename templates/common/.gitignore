@@ -16,4 +16,8 @@ editors.key
 # Build output (deployed straight from CI, never committed)
 dist/
 
+# Local server data and secrets (company edition)
+data/
+.env
+
 .DS_Store

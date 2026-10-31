@@ -1,7 +1,36 @@
 # Advent calendar
 
 Puzzles for this calendar are written in plaintext on your machine and sealed
-before they are committed. The repository only ever holds locked files.
+before they are committed. The repository only ever holds locked files. The
+calendar is published as a static site; see "Publishing" below.
+
+## Getting started
+
+1. Install the engine this repository is pinned to ({{engine}}):
+
+   ```sh
+   curl --proto '=https' --tlsv1.2 -LsSf https://github.com/AshDevFr/advent/releases/download/v{{engine}}/advent-cli-installer.sh | sh
+   ```
+
+2. Put `editors.key` at the root of the repository (from `advent init`, or
+   from whoever runs the calendar). It is gitignored.
+3. Write your first day: copy `examples/day01` to `events/{{event}}/day01`,
+   edit it, then `advent seal events/{{event}}/day01`.
+4. Look at it on your machine:
+
+   ```sh
+   advent preview                    # what players see today
+   advent preview --until 2026-12-05 # as of the end of that date
+   advent preview --all-open         # every day and hint open
+   advent preview --solved           # every word filled in, to try the certificate
+   ```
+
+   It serves on http://127.0.0.1:4321 and needs the editors key, since it
+   opens days that are not released yet.
+5. Commit and push. Only sealed files go in; the plaintext stays ignored.
+
+`advent build --until 2026-12-05` writes the static site to `dist/` as it
+will be published on that date, if you want to look at the files themselves.
 
 ## Keys
 
@@ -53,12 +82,9 @@ One-time setup:
 Before a deploy, CI checks that no plaintext is tracked and that every day
 released so far opens; days still being written do not block it.
 
-## Company edition (optional)
+## Hosting it yourself
 
-To host the calendar for invited players only, with progress on a server
-and an admin section, run it with `advent serve` from a Docker image instead
-of deploying the static site. `Dockerfile` and `.dockerignore` build that
-image with only the sealed files in it; `.github/workflows/image.yml` builds
-and pushes it to this repository's container registry on demand; and
-`docker-compose.example.yml` runs it. See
-https://advent-engine.4sh.dev/guides/company/.
+`dist/` is plain static files: any web server or static host works, as long
+as it serves https. See https://advent-engine.4sh.dev/guides/self-hosting/.
+For invited players with progress on a server, start a repository with
+`advent init --edition company` instead.

@@ -3,7 +3,8 @@
 #   docker compose up -d
 services:
   advent:
-    image: ghcr.io/OWNER/REPO:latest
+    # The image .github/workflows/image.yml pushes.
+    image: {{image}}:latest
     restart: unless-stopped
     ports:
       - "8080:8080"

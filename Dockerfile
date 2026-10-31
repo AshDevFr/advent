@@ -2,7 +2,7 @@
 #
 # The advent engine as an image, for the company edition's `advent serve`.
 # It holds no calendar: each event repo builds its own image FROM this one,
-# copying its sealed files into /event (see templates/event/Dockerfile).
+# copying its sealed files into /event (see templates/company/Dockerfile).
 
 FROM node:24-bookworm-slim AS web
 WORKDIR /src/web
