@@ -15,10 +15,14 @@ export interface EventInfo {
   timezone: string;
   start: string;
   days: number;
+  /** The edition's display headline, if the story sets one. */
+  headline: string | null;
   intro: string | null;
   /** When day 1 opens (RFC 3339), or null when it is already open. */
   opens_at: string | null;
   released: number[];
+  /** Type label of each released day, keyed by day number. */
+  types: Record<string, string>;
   background: string | null;
   doors: string | null;
 }

@@ -38,12 +38,16 @@ pub struct EventInfo {
     pub timezone: String,
     pub start: String,
     pub days: u32,
+    /// The edition's display headline, if the story sets one.
+    pub headline: Option<String>,
     pub intro: Option<String>,
     /// When day 1 opens (RFC 3339, UTC), or null when it is already open
     /// regardless of the date. Drives the coming-soon countdown.
     pub opens_at: Option<String>,
     /// Days published in this build, in order.
     pub released: Vec<u32>,
+    /// Type label of each released day (and of no other), for the door cards.
+    pub types: BTreeMap<u32, String>,
     /// Site paths of theme decoration, if the event's theme sets them.
     pub background: Option<String>,
     pub doors: Option<String>,
@@ -76,24 +80,24 @@ pub struct Locks {
 pub fn default_tokens(scheme: Scheme) -> BTreeMap<String, String> {
     let pairs: &[(&str, &str)] = match scheme {
         Scheme::Light => &[
-            ("primary", "#b3261e"),
+            ("primary", "#a8621a"),
             ("on-primary", "#ffffff"),
-            ("surface", "#fffaf3"),
+            ("surface", "#f6f3ec"),
             ("surface-raised", "#ffffff"),
-            ("text", "#1f1b16"),
-            ("text-muted", "#5c544b"),
-            ("accent", "#2e7d32"),
-            ("border", "#e3dccf"),
+            ("text", "#1b1d24"),
+            ("text-muted", "#5d6170"),
+            ("accent", "#8a4f12"),
+            ("border", "#e2dccf"),
         ],
         Scheme::Dark => &[
-            ("primary", "#ffb4a9"),
-            ("on-primary", "#561e18"),
-            ("surface", "#1a1612"),
-            ("surface-raised", "#26211c"),
-            ("text", "#efe6dc"),
-            ("text-muted", "#b8ada1"),
-            ("accent", "#8fd694"),
-            ("border", "#3d362f"),
+            ("primary", "#e3a54f"),
+            ("on-primary", "#1c1408"),
+            ("surface", "#10131a"),
+            ("surface-raised", "#161b26"),
+            ("text", "#e9ecf3"),
+            ("text-muted", "#98a1b3"),
+            ("accent", "#f0b65a"),
+            ("border", "#262d3b"),
         ],
     };
     pairs
@@ -110,88 +114,116 @@ pub enum ThemeError {
     BadValue { key: String, value: String },
 }
 
-/// CSS custom properties for both schemes, layered defaults, brand, theme.
-/// Keys and values are checked so a palette cannot break out of its rule.
-pub fn theme_css(brand: Option<&Brand>, theme: Option<&Theme>) -> Result<String, ThemeError> {
-    let mut css = String::new();
-    for scheme in [Scheme::Light, Scheme::Dark] {
-        let tokens = resolve_scheme(scheme, &default_tokens(scheme), brand, theme);
-        let mut rule = String::new();
-        for (key, value) in &tokens {
-            if key.is_empty()
-                || !key
-                    .bytes()
-                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
-            {
-                return Err(ThemeError::BadKey(key.clone()));
-            }
-            if value.contains([';', '{', '}', '<', '>', '\n', '\\']) {
-                return Err(ThemeError::BadValue {
-                    key: key.clone(),
-                    value: value.clone(),
-                });
-            }
-            let _ = writeln!(rule, "  --{key}: {value};");
+fn rule(tokens: &BTreeMap<String, String>) -> Result<String, ThemeError> {
+    let mut rule = String::new();
+    for (key, value) in tokens {
+        let key_ok = !key.is_empty()
+            && key
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
+        if !key_ok {
+            return Err(ThemeError::BadKey(key.clone()));
         }
-        match scheme {
-            Scheme::Light => {
-                let _ = write!(css, ":root {{\n{rule}}}\n");
-            }
-            Scheme::Dark => {
-                let _ = write!(
-                    css,
-                    "@media (prefers-color-scheme: dark) {{\n:root {{\n{rule}}}\n}}\n"
-                );
-            }
+        if value.contains([';', '{', '}', '<', '>', '\n', '\\']) {
+            return Err(ThemeError::BadValue {
+                key: key.clone(),
+                value: value.clone(),
+            });
         }
+        let _ = writeln!(rule, "  --{key}: {value};");
     }
-    Ok(css)
+    Ok(rule)
+}
+
+/// CSS custom properties for both schemes, layered defaults, brand, theme.
+/// Light applies by default; dark applies when the system prefers it unless
+/// the player picked light, and whenever the player picked dark (the
+/// frontend sets `data-theme` on `<html>`). Keys and values are checked so a
+/// palette cannot break out of its rule.
+pub fn theme_css(brand: Option<&Brand>, theme: Option<&Theme>) -> Result<String, ThemeError> {
+    let light = rule(&resolve_scheme(
+        Scheme::Light,
+        &default_tokens(Scheme::Light),
+        brand,
+        theme,
+    ))?;
+    let dark = rule(&resolve_scheme(
+        Scheme::Dark,
+        &default_tokens(Scheme::Dark),
+        brand,
+        theme,
+    ))?;
+    Ok(format!(
+        ":root {{\n{light}}}\n\
+         @media (prefers-color-scheme: dark) {{\n:root:not([data-theme=\"light\"]) {{\n{dark}}}\n}}\n\
+         :root[data-theme=\"dark\"] {{\n{dark}}}\n"
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::Palettes;
 
-    fn brand(palette: &[(&str, &str)]) -> Brand {
+    fn map(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    }
+
+    fn brand(light: &[(&str, &str)], dark: &[(&str, &str)]) -> Brand {
         Brand {
             name: "Acme".into(),
             logo: None,
-            palette: palette
-                .iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect(),
-            palette_dark: BTreeMap::new(),
+            palette: Palettes {
+                light: map(light),
+                dark: map(dark),
+            },
         }
     }
 
     #[test]
-    fn site_theme_css_layers_brand_over_defaults() {
-        let css = theme_css(Some(&brand(&[("primary", "#0055aa")])), None).unwrap();
-        let (light, dark) = css.split_once("@media").unwrap();
+    fn site_theme_css_has_both_palettes_and_honours_the_toggle() {
+        let b = brand(&[("primary", "#0055aa")], &[("primary", "#99ccff")]);
+        let css = theme_css(Some(&b), None).unwrap();
+        let (light, rest) = css
+            .split_once("@media (prefers-color-scheme: dark)")
+            .unwrap();
+        let (system_dark, chosen_dark) = rest.split_once(":root[data-theme=\"dark\"]").unwrap();
         assert!(light.contains("--primary: #0055aa;"));
-        assert!(light.contains("--surface: #fffaf3;"));
-        assert!(dark.contains("--primary: #ffb4a9;"));
+        assert!(
+            light.contains("--surface: #f6f3ec;"),
+            "defaults fill the gaps"
+        );
+        assert!(system_dark.contains(":root:not([data-theme=\"light\"])"));
+        assert!(system_dark.contains("--primary: #99ccff;"));
+        assert!(chosen_dark.contains("--primary: #99ccff;"));
+        assert!(chosen_dark.contains("--surface: #10131a;"));
     }
 
     #[test]
     fn site_theme_css_theme_overrides_brand() {
         let theme = Theme {
-            palette: BTreeMap::from([("primary".to_string(), "#112233".to_string())]),
+            palette: Palettes {
+                light: map(&[("primary", "#112233")]),
+                dark: BTreeMap::new(),
+            },
             ..Theme::default()
         };
-        let css = theme_css(Some(&brand(&[("primary", "#0055aa")])), Some(&theme)).unwrap();
+        let css = theme_css(Some(&brand(&[("primary", "#0055aa")], &[])), Some(&theme)).unwrap();
         assert!(css.contains("--primary: #112233;"));
         assert!(!css.contains("#0055aa"));
     }
 
     #[test]
     fn site_theme_css_rejects_injection() {
-        let bad = brand(&[("primary", "red; } body { display: none")]);
+        let bad = brand(&[("primary", "red; } body { display: none")], &[]);
         assert!(matches!(
             theme_css(Some(&bad), None),
             Err(ThemeError::BadValue { .. })
         ));
-        let bad_key = brand(&[("Primary Colour", "red")]);
+        let bad_key = brand(&[], &[("Primary Colour", "red")]);
         assert!(matches!(
             theme_css(Some(&bad_key), None),
             Err(ThemeError::BadKey(_))

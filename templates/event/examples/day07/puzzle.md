@@ -1,5 +1,3 @@
-# Everything connects
-
 Take, in this order:
 
 1. the 1st letter of day 6's answer,

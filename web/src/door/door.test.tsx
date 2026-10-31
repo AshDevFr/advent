@@ -36,10 +36,9 @@ afterEach(() => {
 describe("door panel", () => {
   it("renders code blocks and images from the day's assets, but no raw HTML", async () => {
     serveDay();
-    render(<DoorPanel event="2026" day={2} onClose={() => {}} />);
-    const dialog = await screen.findByRole("dialog", {
-      name: "Day 2: Capitals",
-    });
+    render(<DoorPanel event="2026" day={2} type="teaser" onClose={() => {}} />);
+    const dialog = await screen.findByRole("dialog", { name: "Capitals" });
+    expect(dialog).toHaveTextContent("Day 2 · teaser");
     expect(dialog.querySelector("pre")).toHaveTextContent("print('hi')");
     expect(within(dialog).getByRole("img", { name: "map" })).toHaveAttribute(
       "src",

@@ -1,5 +1,3 @@
-# Count the candles
-
 An elf wrote a tiny program to count the candles lit over ten nights:
 one on the first night, two on the second, and so on.
 

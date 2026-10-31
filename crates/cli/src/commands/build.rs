@@ -107,6 +107,7 @@ fn build_event(
     let doors = decoration(theme.as_ref().and_then(|t| t.doors.as_ref()))?;
 
     let mut released = Vec::new();
+    let mut types = std::collections::BTreeMap::new();
     for n in 1..=event.days {
         if !is_released(&event, n, now) {
             continue;
@@ -119,7 +120,7 @@ fn build_event(
                 sealed_path.display()
             );
         }
-        publish_day(
+        let kind = publish_day(
             n,
             &fs::read(&sealed_path)?,
             hints_due(&event, n, now),
@@ -128,6 +129,7 @@ fn build_event(
         )
         .with_context(|| format!("day {n}"))?;
         released.push(n);
+        types.insert(n, kind);
     }
 
     let final_sealed = event_dir.join(keeper::FINAL_DIR).join(SEALED_FILE);
@@ -142,9 +144,11 @@ fn build_event(
         timezone: event.timezone.name().to_string(),
         start: event.start.to_string(),
         days: event.days,
+        headline: event.story.title.clone(),
         intro: event.story.intro.clone(),
         opens_at: first_release(&event).map(|t| t.to_rfc3339_opts(SecondsFormat::Secs, true)),
         released,
+        types,
         background,
         doors,
     };
@@ -158,7 +162,7 @@ fn publish_day(
     hints_due: u8,
     release: &[x25519::Identity],
     site: &Path,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<String> {
     let sealed = format::read_sealed_day(sealed_json)?;
     let day_key = wrap::unwrap_key(&sealed.day_key, release)
         .context("the day key does not open with ADVENT_RELEASE_KEY")?;
@@ -176,7 +180,7 @@ fn publish_day(
         &DayPage {
             day: n,
             title: bundle.title,
-            kind: bundle.kind,
+            kind: bundle.kind.clone(),
             markdown: bundle.markdown,
         },
     )?;
@@ -202,7 +206,8 @@ fn publish_day(
         &Locks {
             word_locks: sealed.word_locks,
         },
-    )
+    )?;
+    Ok(bundle.kind)
 }
 
 /// Start from an empty folder. A non-empty one is only cleared when an

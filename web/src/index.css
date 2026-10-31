@@ -1,34 +1,52 @@
 @import "tailwindcss";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/jetbrains-mono";
 
 /*
  * Every colour in the UI comes from these variables. `advent build` writes a
  * theme.css from brand.yaml and the event's theme.yaml that redefines them,
  * so a brand or a yearly theme restyles everything without code changes.
- * The names match the palette keys in brand.yaml.
+ * The names match the palette keys in brand.yaml. Dark applies when the
+ * system prefers it unless the player chose light, and whenever the player
+ * chose dark (`data-theme` on <html>, set by the theme toggle).
  */
 :root {
-  --primary: #b3261e;
+  --primary: #a8621a;
   --on-primary: #ffffff;
-  --surface: #fffaf3;
+  --surface: #f6f3ec;
   --surface-raised: #ffffff;
-  --text: #1f1b16;
-  --text-muted: #5c544b;
-  --accent: #2e7d32;
-  --border: #e3dccf;
+  --text: #1b1d24;
+  --text-muted: #5d6170;
+  --accent: #8a4f12;
+  --border: #e2dccf;
   --radius: 0.75rem;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --primary: #ffb4a9;
-    --on-primary: #561e18;
-    --surface: #1a1612;
-    --surface-raised: #26211c;
-    --text: #efe6dc;
-    --text-muted: #b8ada1;
-    --accent: #8fd694;
-    --border: #3d362f;
+  :root:not([data-theme="light"]) {
+    --primary: #e3a54f;
+    --on-primary: #1c1408;
+    --surface: #10131a;
+    --surface-raised: #161b26;
+    --text: #e9ecf3;
+    --text-muted: #98a1b3;
+    --accent: #f0b65a;
+    --border: #262d3b;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --primary: #e3a54f;
+  --on-primary: #1c1408;
+  --surface: #10131a;
+  --surface-raised: #161b26;
+  --text: #e9ecf3;
+  --text-muted: #98a1b3;
+  --accent: #f0b65a;
+  --border: #262d3b;
+  color-scheme: dark;
 }
 
 /* shadcn/ui and Tailwind utility names, mapped onto the variables above. */
@@ -49,6 +67,8 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
+  --font-display: "Fraunces Variable", Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
 @layer base {

@@ -1,5 +1,3 @@
-# Who wrapped what?
-
 Three elves, Alba, Bram and Cleo, each wrapped exactly one gift: a drum, a
 kite and a sled.
 

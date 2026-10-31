@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useProgress } from "@/store";
 import { event, serve, site } from "@/test/fixtures";
 import vectors from "../../../test-vectors.json";
-import { CertificateSection, wrap } from "./Certificate";
+import { CertificatePanel, wrap } from "./Certificate";
 import { svgToPng } from "./exportPng";
 
 // The first final vector: three words open {"title":"Well done",...}.
@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe("certificate", () => {
-  it("unlocks with every word and shows the name, title and hints used", async () => {
+  it("unlocks with every word and shows the name, title and year only", async () => {
     serve({
       "/2026/api/final.json": {
         salt: sealed.salt,
@@ -44,13 +44,15 @@ describe("certificate", () => {
     });
     solveAll(3);
     const user = userEvent.setup();
-    render(<CertificateSection event={threeDays} />);
+    render(<CertificatePanel event={threeDays} brandName="Acme Advent" />);
 
     await user.type(
       screen.getByLabelText("Name for the certificate"),
       "Ada Lovelace",
     );
-    await user.click(screen.getByRole("button", { name: "Unlock" }));
+    await user.click(
+      screen.getByRole("button", { name: "Unlock certificate" }),
+    );
 
     const svg = await screen.findByRole("img", {
       name: "Certificate for Ada Lovelace: Well done",
@@ -58,17 +60,20 @@ describe("certificate", () => {
     expect(svg).toHaveTextContent("Ada Lovelace");
     expect(svg).toHaveTextContent("Well done");
     expect(svg).toHaveTextContent("You made it.");
-    expect(svg).toHaveTextContent("3 hints used");
-    expect(svg).toHaveTextContent("4 attempts");
+    expect(svg).toHaveTextContent("Acme Advent");
+    expect(svg).toHaveTextContent("Advent 2026");
+    // Progress stats can be reset in localStorage, so they are not shown.
+    expect(svg).not.toHaveTextContent(/hint|attempt|Completed/);
     expect(useProgress.getState().events["2026"].name).toBe("Ada Lovelace");
   });
 
-  it("is not offered until every word is collected", () => {
+  it("is visible from the start, with unlocking disabled until every word is in", () => {
     solveAll(2);
-    render(<CertificateSection event={threeDays} />);
+    render(<CertificatePanel event={threeDays} brandName="Acme" />);
+    expect(screen.getByLabelText("Name for the certificate")).toBeVisible();
     expect(
-      screen.queryByLabelText("Name for the certificate"),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Unlock certificate" }),
+    ).toBeDisabled();
   });
 
   it("explains when the words do not open it", async () => {
@@ -82,9 +87,11 @@ describe("certificate", () => {
     solveAll(3);
     useProgress.getState().solve("2026", 2, "wrongword");
     const user = userEvent.setup();
-    render(<CertificateSection event={threeDays} />);
+    render(<CertificatePanel event={threeDays} brandName="Acme" />);
     await user.type(screen.getByLabelText("Name for the certificate"), "Ada");
-    await user.click(screen.getByRole("button", { name: "Unlock" }));
+    await user.click(
+      screen.getByRole("button", { name: "Unlock certificate" }),
+    );
     expect(await screen.findByRole("alert")).toHaveTextContent("do not open");
   });
 });

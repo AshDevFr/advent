@@ -4,4 +4,6 @@ timezone: UTC
 start: "{{start}}"
 days: 24
 story:
-  intro: "Twenty-four doors, one key. Solve each day to collect its word."
+  # Optional display headline; the title above is used when absent.
+  # title: "The Longest Night Hunt"
+  intro: "One door a day. Each solve gives you one word of the key. Collect them all and the key opens your certificate."

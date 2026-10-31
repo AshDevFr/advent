@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { api, type SiteIndex, themeCssUrl } from "@/api";
 import { Countdown } from "@/components/Countdown";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { buttonVariants } from "@/components/ui/button";
 import { useThemeCss } from "@/useThemeCss";
 
@@ -23,14 +24,19 @@ export function Landing() {
 
   const events = [...site.events].reverse();
   return (
-    <main className="mx-auto flex min-h-svh max-w-2xl flex-col gap-8 p-6">
-      <header className="flex flex-col items-center gap-3 text-center">
-        {site.brand.logo && (
-          <img src={site.brand.logo} alt="" className="size-16" />
-        )}
-        <h1 className="text-3xl font-semibold">{site.brand.name}</h1>
+    <main className="mx-auto flex min-h-svh max-w-3xl flex-col gap-10 px-4 py-6 sm:px-8 sm:py-10">
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {site.brand.logo && (
+            <img src={site.brand.logo} alt="" className="size-12" />
+          )}
+          <h1 className="font-display text-4xl font-semibold tracking-tight">
+            {site.brand.name}
+          </h1>
+        </div>
+        <ThemeToggle />
       </header>
-      {events.length === 0 && <p className="text-center">Nothing yet.</p>}
+      {events.length === 0 && <p>Nothing yet.</p>}
       {events.map((event) => {
         const opensAt = event.opens_at ? new Date(event.opens_at) : null;
         const upcoming = opensAt !== null && opensAt.getTime() > Date.now();
@@ -38,10 +44,18 @@ export function Landing() {
           <section
             key={event.id}
             aria-labelledby={`event-${event.id}`}
-            className="flex flex-col gap-4 rounded-lg border bg-card p-6 text-center"
+            className="flex flex-col gap-4 rounded-lg border bg-card p-6"
           >
-            <h2 id={`event-${event.id}`} className="text-2xl font-semibold">
-              {event.title}
+            {event.headline && (
+              <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+                {event.title}
+              </p>
+            )}
+            <h2
+              id={`event-${event.id}`}
+              className="font-display text-3xl font-semibold tracking-tight"
+            >
+              {event.headline ?? event.title}
             </h2>
             {event.intro && (
               <p className="text-muted-foreground">{event.intro}</p>
@@ -49,7 +63,10 @@ export function Landing() {
             {upcoming && opensAt ? (
               <Countdown target={opensAt} />
             ) : (
-              <a href={`/${event.id}/`} className={buttonVariants()}>
+              <a
+                href={`/${event.id}/`}
+                className={buttonVariants({ className: "self-start" })}
+              >
                 Open the calendar
               </a>
             )}

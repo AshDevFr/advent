@@ -91,6 +91,9 @@ fn default_days() -> u32 {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Story {
+    /// Display headline for the edition (e.g. "The Longest Night Hunt");
+    /// the event title is used when absent.
+    pub title: Option<String>,
     pub intro: Option<String>,
 }
 
@@ -170,12 +173,29 @@ impl FinalPayload {
 pub struct Brand {
     pub name: String,
     pub logo: Option<String>,
-    /// Light-mode colours.
     #[serde(default)]
-    pub palette: BTreeMap<String, String>,
-    /// Dark-mode colours; without it, dark mode uses the engine defaults.
+    pub palette: Palettes,
+}
+
+/// Colour tokens for each scheme. The site follows the player's system
+/// setting unless they pick one, so both are always in play; a key missing
+/// from one scheme keeps the layer below for that scheme only.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Palettes {
     #[serde(default)]
-    pub palette_dark: BTreeMap<String, String>,
+    pub light: BTreeMap<String, String>,
+    #[serde(default)]
+    pub dark: BTreeMap<String, String>,
+}
+
+impl Palettes {
+    pub fn get(&self, scheme: Scheme) -> &BTreeMap<String, String> {
+        match scheme {
+            Scheme::Light => &self.light,
+            Scheme::Dark => &self.dark,
+        }
+    }
 }
 
 impl Brand {
@@ -190,11 +210,7 @@ impl Brand {
 #[serde(deny_unknown_fields)]
 pub struct Theme {
     #[serde(default)]
-    pub palette: BTreeMap<String, String>,
-    #[serde(default)]
-    pub palette_dark: BTreeMap<String, String>,
-    /// Shorthand for the `accent` palette token.
-    pub accent: Option<String>,
+    pub palette: Palettes,
     pub background: Option<String>,
     pub doors: Option<String>,
     pub intro: Option<String>,
@@ -213,17 +229,9 @@ pub enum Scheme {
     Dark,
 }
 
-/// Merge palette tokens: engine defaults, then the brand, then the theme,
-/// later layers winning. A missing layer is skipped. Each scheme reads only
-/// its own palettes, so a light palette never leaks into dark mode.
-pub fn resolve_tokens(
-    defaults: &BTreeMap<String, String>,
-    brand: Option<&Brand>,
-    theme: Option<&Theme>,
-) -> BTreeMap<String, String> {
-    resolve_scheme(Scheme::Light, defaults, brand, theme)
-}
-
+/// Merge palette tokens for one scheme: engine defaults, then the brand,
+/// then the theme, later layers winning. A missing layer is skipped, and
+/// each scheme reads only its own palette.
 pub fn resolve_scheme(
     scheme: Scheme,
     defaults: &BTreeMap<String, String>,
@@ -231,20 +239,11 @@ pub fn resolve_scheme(
     theme: Option<&Theme>,
 ) -> BTreeMap<String, String> {
     let mut tokens = defaults.clone();
-    if let Some(brand) = brand {
-        tokens.extend(match scheme {
-            Scheme::Light => brand.palette.clone(),
-            Scheme::Dark => brand.palette_dark.clone(),
-        });
-    }
-    if let Some(theme) = theme {
-        tokens.extend(match scheme {
-            Scheme::Light => theme.palette.clone(),
-            Scheme::Dark => theme.palette_dark.clone(),
-        });
-        if let Some(accent) = &theme.accent {
-            tokens.insert("accent".into(), accent.clone());
-        }
+    for palettes in [brand.map(|b| &b.palette), theme.map(|t| &t.palette)]
+        .into_iter()
+        .flatten()
+    {
+        tokens.extend(palettes.get(scheme).clone());
     }
     tokens
 }
@@ -277,12 +276,14 @@ mod tests {
         assert_eq!(day.kind, "teaser");
         assert_eq!(day.answers.len(), 2);
 
-        let brand =
-            Brand::from_yaml("name: Acme Advent\nlogo: logo.svg\npalette:\n  primary: '#05a'\n")
-                .unwrap();
-        assert_eq!(brand.palette["primary"], "#05a");
+        let brand = Brand::from_yaml(
+            "name: Acme Advent\nlogo: logo.svg\npalette:\n  light:\n    primary: '#05a'\n  dark:\n    primary: '#8cf'\n",
+        )
+        .unwrap();
+        assert_eq!(brand.palette.light["primary"], "#05a");
+        assert_eq!(brand.palette.dark["primary"], "#8cf");
 
-        let theme = Theme::from_yaml("accent: '#fc3'\nbackground: stars.webp\n").unwrap();
+        let theme = Theme::from_yaml("background: stars.webp\n").unwrap();
         assert_eq!(theme.background.as_deref(), Some("stars.webp"));
     }
 
@@ -293,37 +294,48 @@ mod tests {
     }
 
     #[test]
-    fn model_tokens_layer_defaults_brand_theme() {
-        let defaults = BTreeMap::from([
-            ("primary".to_string(), "#000".to_string()),
-            ("surface".to_string(), "#fff".to_string()),
-        ]);
+    fn model_tokens_layer_defaults_brand_theme_per_scheme() {
+        let map = |pairs: &[(&str, &str)]| -> BTreeMap<String, String> {
+            pairs
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect()
+        };
+        let defaults = map(&[("primary", "#000"), ("surface", "#fff")]);
         let brand = Brand {
             name: "Acme".into(),
             logo: None,
-            palette: BTreeMap::from([("primary".to_string(), "#05a".to_string())]),
-            palette_dark: BTreeMap::new(),
+            palette: Palettes {
+                light: map(&[("primary", "#05a")]),
+                dark: map(&[("primary", "#8cf")]),
+            },
         };
         let theme = Theme {
-            palette: BTreeMap::from([("surface".to_string(), "#0b1026".to_string())]),
-            accent: Some("#fc3".into()),
+            palette: Palettes {
+                light: map(&[("surface", "#0b1026")]),
+                dark: BTreeMap::new(),
+            },
             ..Theme::default()
         };
 
-        let all = resolve_tokens(&defaults, Some(&brand), Some(&theme));
-        assert_eq!(all["primary"], "#05a");
-        assert_eq!(all["surface"], "#0b1026");
-        assert_eq!(all["accent"], "#fc3");
+        let light = resolve_scheme(Scheme::Light, &defaults, Some(&brand), Some(&theme));
+        assert_eq!(light["primary"], "#05a");
+        assert_eq!(light["surface"], "#0b1026");
 
-        let no_theme = resolve_tokens(&defaults, Some(&brand), None);
-        assert_eq!(no_theme["primary"], "#05a");
-        assert_eq!(no_theme["surface"], "#fff");
-
-        let dark = resolve_scheme(Scheme::Dark, &defaults, Some(&brand), None);
+        let dark = resolve_scheme(Scheme::Dark, &defaults, Some(&brand), Some(&theme));
+        assert_eq!(dark["primary"], "#8cf");
         assert_eq!(
-            dark["primary"], "#000",
-            "light brand palette stays out of dark mode"
+            dark["surface"], "#fff",
+            "the theme set surface for light only"
         );
+
+        let no_theme = resolve_scheme(Scheme::Light, &defaults, Some(&brand), None);
+        assert_eq!(no_theme["surface"], "#fff");
+    }
+
+    #[test]
+    fn model_palette_needs_the_light_and_dark_shape() {
+        assert!(Brand::from_yaml("name: X\npalette:\n  primary: '#000'\n").is_err());
     }
 
     #[test]

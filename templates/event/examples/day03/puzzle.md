@@ -1,5 +1,3 @@
-# Company handbook, page one
-
 *Northwind Lanterns is a fictional company used for this example. In a real
 calendar, a company day asks about things your colleagues already know.*
 

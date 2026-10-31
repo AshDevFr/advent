@@ -1,6 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 
+import userEvent from "@testing-library/user-event";
+
 import { App } from "@/App";
+import { readTheme } from "@/components/ThemeToggle";
 import { useProgress } from "@/store";
 import { event, serve, site } from "@/test/fixtures";
 
@@ -50,27 +53,28 @@ describe("landing page", () => {
 });
 
 describe("event page", () => {
-  it("shows locked, open and solved doors", async () => {
+  it("shows each door's word, type or opening date", async () => {
     serve({ "/2026/event.json": event() });
     useProgress.getState().solve("2026", 1, "light");
     render(<App path="/2026/" />);
 
     const grid = await screen.findByRole("list", { name: "Calendar doors" });
-    expect(
-      within(grid).getByRole("button", { name: "Day 1, solved" }),
-    ).toBeVisible();
+    const solved = within(grid).getByRole("button", { name: "Day 1, solved" });
+    expect(solved).toHaveTextContent("light");
+    expect(solved).toHaveTextContent("teaser");
     expect(
       within(grid).getByRole("button", { name: "Day 2, open" }),
-    ).toBeVisible();
+    ).toHaveTextContent("code");
     expect(
       within(grid).getByRole("button", { name: "Day 3, open" }),
-    ).toBeVisible();
+    ).toHaveTextContent("company");
     for (const day of [4, 5, 6, 7]) {
+      const door = within(grid).getByRole("img", {
+        name: `Day ${day}, locked, opens Dec ${day}`,
+      });
+      expect(door).toHaveTextContent(`Opens Dec ${day}`);
       expect(
-        within(grid).getByRole("img", { name: `Day ${day}, locked` }),
-      ).toBeVisible();
-      expect(
-        within(grid).queryByRole("button", { name: `Day ${day}, locked` }),
+        within(grid).queryByRole("button", { name: new RegExp(`Day ${day},`) }),
       ).not.toBeInTheDocument();
     }
     expect(within(grid).getAllByRole("listitem")).toHaveLength(7);
@@ -84,6 +88,7 @@ describe("event page", () => {
     const strip = await screen.findByRole("list", {
       name: "Key words collected",
     });
+    expect(screen.getByText("1 / 7 words")).toBeVisible();
     expect(within(strip).getByLabelText("Day 2: returns")).toHaveTextContent(
       "returns",
     );
@@ -96,5 +101,27 @@ describe("event page", () => {
     expect(
       await screen.findByText("There is no calendar here."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("theme toggle", () => {
+  it("defaults to the system setting and remembers an explicit choice", async () => {
+    localStorage.clear();
+    delete document.documentElement.dataset.theme;
+    serve({ "/site.json": site([event({ opens_at: null })]) });
+    const user = userEvent.setup();
+    render(<App path="/" />);
+
+    expect(await screen.findByRole("radio", { name: "System" })).toBeChecked();
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+
+    await user.click(screen.getByRole("radio", { name: "Dark" }));
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("advent-theme")).toBe("dark");
+    expect(readTheme()).toBe("dark");
+
+    await user.click(screen.getByRole("radio", { name: "System" }));
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+    expect(localStorage.getItem("advent-theme")).toBeNull();
   });
 });

@@ -27,10 +27,13 @@ interface Loaded {
 export function DoorPanel({
   event,
   day,
+  type,
   onClose,
 }: {
   event: string;
   day: number;
+  /** The day's type label, shown above the title. */
+  type?: string;
   onClose: () => void;
 }) {
   const [data, setData] = useState<Loaded | null>(null);
@@ -53,10 +56,15 @@ export function DoorPanel({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined}>
-        <DialogTitle className="pr-8 text-2xl font-semibold">
-          Day {day}
-          {data && `: ${data.page.title}`}
-        </DialogTitle>
+        <div className="flex flex-col gap-1 pr-8">
+          <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+            Day {day}
+            {type && ` · ${type}`}
+          </p>
+          <DialogTitle className="font-display text-3xl font-semibold tracking-tight">
+            {data ? data.page.title : `Day ${day}`}
+          </DialogTitle>
+        </div>
         {failed && <p role="alert">This door could not be opened.</p>}
         {!data && !failed && <p role="status">Opening…</p>}
         {data && (
@@ -164,9 +172,10 @@ function Solved({ word }: { word: string }) {
     }
   }
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-md bg-accent/15 p-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-md border border-primary bg-primary/10 p-3">
       <p>
-        Solved! Your word: <strong className="text-lg">{word}</strong>
+        Solved! Your word:{" "}
+        <strong className="font-mono text-lg text-primary">{word}</strong>
       </p>
       <Button type="button" variant="outline" size="sm" onClick={copy}>
         {copied ? "Copied" : "Copy word"}

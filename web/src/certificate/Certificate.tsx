@@ -7,20 +7,27 @@ import {
   openFinal,
   type Certificate as Payload,
 } from "@/crypto";
-import { total, useEventProgress, useProgress } from "@/store";
+import { useEventProgress, useProgress } from "@/store";
 import { download, svgToPng } from "./exportPng";
 
-/** Shown once every word is collected: unlock and render the certificate. */
-export function CertificateSection({ event }: { event: EventInfo }) {
+/**
+ * Always shown, so players know what the words are for; unlocking needs
+ * every word. The key is derived from the words in the browser and opens
+ * the certificate there: nothing is checked on a server.
+ */
+export function CertificatePanel({
+  event,
+  brandName,
+}: {
+  event: EventInfo;
+  brandName: string;
+}) {
   const progress = useEventProgress(event.id);
-  const days = Array.from({ length: event.days }, (_, i) => i + 1);
-  const words = days.map((d) => progress.words[d]);
-  if (words.some((w) => !w)) return null;
-  return <Unlock event={event} words={words as string[]} />;
-}
-
-function Unlock({ event, words }: { event: EventInfo; words: string[] }) {
-  const progress = useEventProgress(event.id);
+  const words = Array.from(
+    { length: event.days },
+    (_, i) => progress.words[i + 1],
+  );
+  const complete = words.every(Boolean);
   const [name, setName] = useState(progress.name);
   const [payload, setPayload] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,10 +35,13 @@ function Unlock({ event, words }: { event: EventInfo; words: string[] }) {
 
   async function unlock(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!complete || !name.trim()) return;
     useProgress.getState().setName(event.id, name.trim());
     try {
-      const opened = await openFinal(words, await api.final(event.id));
+      const opened = await openFinal(
+        words as string[],
+        await api.final(event.id),
+      );
       if (opened) setPayload(opened);
       else
         setError(
@@ -48,34 +58,49 @@ function Unlock({ event, words }: { event: EventInfo; words: string[] }) {
 
   return (
     <section
-      aria-labelledby="certificate-heading"
-      className="flex flex-col gap-4 rounded-lg border bg-card p-4 sm:p-6"
+      aria-label="Certificate"
+      className="flex flex-col gap-4 rounded-lg border bg-card p-4 sm:p-5"
     >
-      <h2 id="certificate-heading" className="text-2xl font-semibold">
-        You found every word
-      </h2>
       {!payload && (
-        <form onSubmit={unlock} className="flex flex-col gap-2">
-          <label htmlFor={inputId}>Name for the certificate</label>
-          <div className="flex gap-2">
+        <form
+          onSubmit={unlock}
+          className="flex flex-col gap-4 md:flex-row md:items-center"
+        >
+          <p className="flex-1 text-sm text-muted-foreground">
+            When every word is in, enter the name that goes on your certificate.
+            The key is derived from your words in your browser, and it decrypts
+            the certificate. Nothing is checked on a server.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label htmlFor={inputId} className="sr-only">
+              Name for the certificate
+            </label>
             <input
               id={inputId}
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
-              className="h-9 min-w-0 flex-1 rounded-md border bg-background px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              placeholder="Name on certificate"
+              className="h-9 w-full min-w-0 rounded-md border bg-background px-3 font-mono text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:w-56"
             />
-            <Button type="submit">Unlock</Button>
+            <Button type="submit" disabled={!complete}>
+              Unlock certificate
+            </Button>
           </div>
-          {error && (
-            <p role="alert" className="text-sm">
-              {error}
-            </p>
-          )}
         </form>
       )}
+      {error && (
+        <p role="alert" className="text-sm">
+          {error}
+        </p>
+      )}
       {payload && (
-        <CertificateView event={event} payload={payload} name={name.trim()} />
+        <CertificateView
+          event={event}
+          brandName={brandName}
+          payload={payload}
+          name={name.trim()}
+        />
       )}
     </section>
   );
@@ -121,30 +146,23 @@ async function asDataUrl(path: string): Promise<string | null> {
 
 export function CertificateView({
   event,
+  brandName,
   payload,
   name,
-  date = new Date(),
 }: {
   event: EventInfo;
+  brandName: string;
   payload: Payload;
   name: string;
-  date?: Date;
 }) {
-  const progress = useEventProgress(event.id);
   const svgRef = useRef<SVGSVGElement>(null);
-  const [brand, setBrand] = useState<{ name: string; logo: string | null }>({
-    name: "",
-    logo: null,
-  });
+  const [logo, setLogo] = useState<string | null>(null);
 
   useEffect(() => {
     api
       .site()
       .then(async (site) =>
-        setBrand({
-          name: site.brand.name,
-          logo: site.brand.logo ? await asDataUrl(site.brand.logo) : null,
-        }),
+        setLogo(site.brand.logo ? await asDataUrl(site.brand.logo) : null),
       )
       .catch(() => {});
   }, []);
@@ -156,13 +174,14 @@ export function CertificateView({
     primary: themeColour("primary", "#b3261e"),
     accent: themeColour("accent", "#2e7d32"),
   };
-  const hints = total(progress.hintsUsed);
-  const attempts = total(progress.attempts);
-  const when = date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  // Only the year: progress stats live in localStorage and can be reset,
+  // so they would prove nothing on a certificate.
+  const year = event.start.slice(0, 4);
+  const heading = event.headline ?? event.title;
+  const edition = heading.includes(year) ? heading : `${heading} · ${year}`;
+  const title = wrap(payload.title, 30)
+    .slice(0, 2)
+    .map((line, i, all) => ({ line, y: 280 - (all.length - 1) * 30 + i * 62 }));
   const message = wrap(payload.message, 60)
     .slice(0, 6)
     .map((line, i) => ({ line, y: 440 + i * 40 }));
@@ -181,6 +200,9 @@ export function CertificateView({
         viewBox="0 0 1200 850"
         role="img"
         aria-label={`Certificate for ${name}: ${payload.title}`}
+        // Web fonts do not load inside an exported SVG image; the stack
+        // falls back to a system serif there.
+        fontFamily="'Fraunces Variable', Georgia, serif"
         className="h-auto w-full rounded-md border"
       >
         <rect width="1200" height="850" fill={colours.surface} />
@@ -194,9 +216,7 @@ export function CertificateView({
           strokeWidth="6"
           rx="24"
         />
-        {brand.logo && (
-          <image href={brand.logo} x="560" y="70" width="80" height="80" />
-        )}
+        {logo && <image href={logo} x="560" y="70" width="80" height="80" />}
         <text
           x="600"
           y="190"
@@ -204,18 +224,21 @@ export function CertificateView({
           fontSize="28"
           fill={colours.muted}
         >
-          {brand.name} · {event.title}
+          {brandName}
         </text>
-        <text
-          x="600"
-          y="280"
-          textAnchor="middle"
-          fontSize="56"
-          fontWeight="700"
-          fill={colours.primary}
-        >
-          {payload.title}
-        </text>
+        {title.map(({ line, y }) => (
+          <text
+            key={y}
+            x="600"
+            y={y}
+            textAnchor="middle"
+            fontSize="56"
+            fontWeight="700"
+            fill={colours.primary}
+          >
+            {line}
+          </text>
+        ))}
         <text
           x="600"
           y="360"
@@ -254,8 +277,7 @@ export function CertificateView({
           fontSize="24"
           fill={colours.accent}
         >
-          Completed {when} · {hints} hint{hints === 1 ? "" : "s"} used ·{" "}
-          {attempts} attempt{attempts === 1 ? "" : "s"}
+          {edition}
         </text>
       </svg>
       <Button type="button" onClick={exportImage} className="self-start">

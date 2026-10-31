@@ -66,6 +66,11 @@ fn build_publishes_only_released_days() {
     let event: serde_json::Value =
         serde_json::from_slice(&fs::read(out.join("2026/event.json")).unwrap()).unwrap();
     assert_eq!(event["released"], serde_json::json!([1, 2, 3]));
+    assert_eq!(
+        event["types"],
+        serde_json::json!({"1": "teaser", "2": "code", "3": "company"}),
+        "types of released days only"
+    );
 }
 
 #[test]
@@ -161,7 +166,7 @@ fn build_writes_brand_and_theme() {
     let repo = sample_event();
     fs::write(
         repo.event_dir().join("theme.yaml"),
-        "palette:\n  primary: \"#112233\"\n",
+        "palette:\n  light:\n    primary: \"#112233\"\n  dark:\n    primary: \"#ccddee\"\n",
     )
     .unwrap();
     let out = build(&repo, "2026-12-03", "dist");
@@ -175,13 +180,21 @@ fn build_writes_brand_and_theme() {
 
     let root_css = fs::read_to_string(out.join("theme.css")).unwrap();
     assert!(
-        root_css.contains("--primary: #b3261e;"),
-        "brand.yaml primary"
+        root_css.contains("--primary: #a8621a;"),
+        "brand light primary"
+    );
+    assert!(
+        root_css.contains("--primary: #e3a54f;"),
+        "brand dark primary"
     );
     let event_css = fs::read_to_string(out.join("2026/theme.css")).unwrap();
     assert!(
         event_css.contains("--primary: #112233;"),
-        "theme.yaml overrides"
+        "theme light overrides"
+    );
+    assert!(
+        event_css.contains("--primary: #ccddee;"),
+        "theme dark overrides"
     );
 }
 
