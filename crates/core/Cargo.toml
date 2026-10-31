@@ -31,6 +31,7 @@ chrono-tz = { version = "0.10", features = ["serde"] }
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
+chrono-tz = "0.10"
 serde = { workspace = true }
 serde_json = { workspace = true }
 base64 = "0.22"

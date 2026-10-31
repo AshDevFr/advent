@@ -21,6 +21,18 @@ palette:
 
 Same shape and keys as in [brand.yaml](/reference/brand-yaml/). Values here win over the brand's, for their scheme only.
 
+### `light`
+
+**Type** map of palette key to CSS colour · **Optional** · Under `palette`
+
+This edition's light colours; missing keys keep the brand's (then the engine's).
+
+### `dark`
+
+**Type** map of palette key to CSS colour · **Optional** · Under `palette`
+
+This edition's dark colours; missing keys keep the brand's dark ones (then the engine's).
+
 ### `background`
 
 **Type** file name · **Optional**
