@@ -19,8 +19,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use super::limits::Kind;
-use super::{AppState, OsEntropy};
+use super::{AppState, OsEntropy, emails};
 use crate::commands::preview;
+use advent_server::mail::Mailer;
 
 const SESSION_COOKIE: &str = "advent_session";
 
@@ -88,10 +89,10 @@ fn client_ip(state: &AppState, headers: &HeaderMap, peer: SocketAddr) -> IpAddr 
     peer.ip()
 }
 
-fn check_limit(state: &AppState, kind: Kind, ip: IpAddr) -> ApiResult<()> {
+fn check_limit(state: &AppState, kind: Kind, key: impl ToString) -> ApiResult<()> {
     state
         .limiter
-        .check(kind, ip, Instant::now())
+        .check(kind, &key.to_string(), Instant::now())
         .map_err(|wait| {
             ApiError(
                 StatusCode::TOO_MANY_REQUESTS,
@@ -210,13 +211,25 @@ async fn request_link(
 ) -> ApiResult<(StatusCode, Json<serde_json::Value>)> {
     check_limit(&state, Kind::SignIn, client_ip(&state, &headers, peer))?;
     if let Some(email) = players::normalize_email(&body.email)
-        && let Ok(Some(player)) = advent_server::Store::player(&state.store, &email).await
+        && check_limit(&state, Kind::LinkEmail, &email).is_ok()
     {
-        // Email delivery is not wired up yet; the log stands in for it.
-        eprintln!(
-            "sign-in link requested for {}: /signin/{}",
-            player.email, player.link
-        );
+        // Looked up and sent after answering, so neither the answer nor its
+        // timing tells whether the address is invited.
+        let state = state.clone();
+        tokio::spawn(async move {
+            match advent_server::Store::player(&state.store, &email).await {
+                Ok(Some(player)) => {
+                    let content = state.content();
+                    let url = emails::sign_in_url(&state.config.link_base(), &player.link);
+                    let message = emails::lost_link(&content.brand, &player.display_email, &url);
+                    if let Err(e) = state.mailer.send(&message).await {
+                        eprintln!("error: sending the sign-in link to {email}: {e}");
+                    }
+                }
+                Ok(None) => {}
+                Err(e) => eprintln!("error: {e}"),
+            }
+        });
     }
     Ok((
         StatusCode::ACCEPTED,

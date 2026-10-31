@@ -11,13 +11,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use advent_core::format;
-use advent_core::model::Event;
+use advent_core::model::{Brand, Event, Scheme, resolve_scheme};
 use advent_core::schedule::end_of_date;
+use advent_core::site::default_tokens;
 use advent_core::wrap::x25519;
 use advent_server::EventData;
 use anyhow::Context;
 use chrono::{DateTime, Days, NaiveDate, Utc};
 
+use super::emails::Branding;
 use crate::commands::build::{self, Moment, Opener, Options};
 use crate::commands::reseal;
 use crate::day::SEALED_FILE;
@@ -30,6 +32,7 @@ pub struct Content {
     pub events: BTreeMap<String, Arc<EventData>>,
     /// When the last day of the last event ends: sessions last until then.
     pub ends_at: DateTime<Utc>,
+    pub brand: Branding,
 }
 
 fn options(
@@ -70,8 +73,20 @@ pub fn load(
 ) -> anyhow::Result<Content> {
     let dir = tempfile::Builder::new().prefix("advent-serve-").tempdir()?;
     let site = dir.path().join("site");
-    build::build_site(root, &site, &options(identities, Moment::At(now), false))?;
+    let index = build::build_site(root, &site, &options(identities, Moment::At(now), false))?;
     let events = load_events(root)?;
+    let brand_file = root.join("brand/brand.yaml");
+    let brand = if brand_file.is_file() {
+        Some(Brand::from_yaml(&fs::read_to_string(&brand_file)?)?)
+    } else {
+        None
+    };
+    let palette = resolve_scheme(
+        Scheme::Light,
+        &default_tokens(Scheme::Light),
+        brand.as_ref(),
+        None,
+    );
     let ends_at = events
         .values()
         .map(|e| end_of_date(e.event.timezone, e.event.day_date(e.event.days)))
@@ -82,6 +97,13 @@ pub fn load(
         _dir: dir,
         events,
         ends_at,
+        brand: Branding {
+            name: index.brand.name,
+            primary: palette
+                .get("primary")
+                .cloned()
+                .unwrap_or_else(|| "#a8621a".into()),
+        },
     })
 }
 

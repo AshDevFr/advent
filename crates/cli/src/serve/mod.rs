@@ -6,7 +6,9 @@
 mod api;
 pub mod config;
 mod content;
+mod emails;
 mod limits;
+mod mail;
 mod sqlite;
 
 use std::net::SocketAddr;
@@ -94,6 +96,7 @@ pub struct AppState {
     pub checker: PoolChecker,
     pub clock: ServeClock,
     pub limiter: Limiter,
+    pub mailer: mail::Sender,
     content: RwLock<Arc<Content>>,
 }
 
@@ -118,6 +121,9 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     )?;
     let identities = release_identities()?;
     let clock = ServeClock::from_env()?;
+    // One TLS crypto provider for both email clients (SMTP and Resend).
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let mailer = mail::Sender::new(&config.mail)?;
 
     content::validate(&root, &identities)?;
     let content = content::load(&root, &identities, clock.now())?;
@@ -141,7 +147,13 @@ pub fn run(args: Args) -> anyhow::Result<()> {
                 limits.signin_per_hour,
                 Duration::from_secs(3600),
             ),
+            (
+                Kind::LinkEmail,
+                limits.links_per_hour,
+                Duration::from_secs(3600),
+            ),
         ]),
+        mailer,
         checker: PoolChecker {
             permits: Semaphore::new(limits.concurrent_checks),
         },

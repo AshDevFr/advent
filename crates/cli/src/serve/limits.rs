@@ -1,8 +1,8 @@
-//! Per-address request limits, to keep the server up under abuse. Fixed
-//! windows in memory: simple, and plenty for one server process.
+//! Request limits per client address (or per email address for sign-in
+//! links), to keep the server up under abuse. Fixed windows in memory:
+//! simple, and plenty for one server process.
 
 use std::collections::HashMap;
-use std::net::IpAddr;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -11,6 +11,8 @@ pub enum Kind {
     Request,
     Guess,
     SignIn,
+    /// Sign-in links sent to one email address.
+    LinkEmail,
 }
 
 /// Entries kept before expired windows are swept.
@@ -18,7 +20,7 @@ const SWEEP_AT: usize = 10_000;
 
 pub struct Limiter {
     rules: HashMap<Kind, (u32, Duration)>,
-    windows: Mutex<HashMap<(Kind, IpAddr), (Instant, u32)>>,
+    windows: Mutex<HashMap<(Kind, String), (Instant, u32)>>,
 }
 
 impl Limiter {
@@ -29,8 +31,8 @@ impl Limiter {
         }
     }
 
-    /// Count a request; `Err` holds how long until the address may retry.
-    pub fn check(&self, kind: Kind, ip: IpAddr, now: Instant) -> Result<(), Duration> {
+    /// Count a request from `key`; `Err` holds how long until it may retry.
+    pub fn check(&self, kind: Kind, key: &str, now: Instant) -> Result<(), Duration> {
         let Some(&(max, window)) = self.rules.get(&kind) else {
             return Ok(());
         };
@@ -41,7 +43,7 @@ impl Limiter {
                 now.duration_since(*start) < w
             });
         }
-        let entry = windows.entry((kind, ip)).or_insert((now, 0));
+        let entry = windows.entry((kind, key.to_string())).or_insert((now, 0));
         if now.duration_since(entry.0) >= window {
             *entry = (now, 0);
         }
@@ -60,8 +62,7 @@ mod tests {
     #[test]
     fn serve_limiter_counts_per_address_and_window() {
         let limiter = Limiter::new([(Kind::Guess, 2, Duration::from_secs(60))]);
-        let a: IpAddr = "10.0.0.1".parse().unwrap();
-        let b: IpAddr = "10.0.0.2".parse().unwrap();
+        let (a, b) = ("10.0.0.1", "10.0.0.2");
         let t = Instant::now();
         assert!(limiter.check(Kind::Guess, a, t).is_ok());
         assert!(limiter.check(Kind::Guess, a, t).is_ok());

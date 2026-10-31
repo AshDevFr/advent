@@ -6,6 +6,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub mod server;
+
 use advent_core::wrap::{self, x25519};
 use assert_cmd::Command;
 

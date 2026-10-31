@@ -30,6 +30,97 @@ pub struct ServerConfig {
     /// this would let clients pick their own address, so it is off by default.
     pub trust_proxy: bool,
     pub limits: Limits,
+    pub mail: MailConfig,
+}
+
+/// How emails are sent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MailConfig {
+    pub sender: MailSender,
+    /// The sender address, as `Name <address>` or a bare address. Required
+    /// for SMTP and Resend.
+    pub from: Option<String>,
+    /// With the log sender: write each email as a JSON file in this folder
+    /// instead of printing it.
+    pub log_dir: Option<PathBuf>,
+    pub smtp: SmtpConfig,
+    pub resend: ResendConfig,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MailSender {
+    /// Print emails to the log (or `log_dir`): development and tests.
+    #[default]
+    Log,
+    Smtp,
+    Resend,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SmtpConfig {
+    pub host: Option<String>,
+    pub port: u16,
+    pub username: Option<String>,
+    /// From `ADVENT_MAIL__SMTP__PASSWORD`.
+    pub password: Option<String>,
+    pub tls: SmtpTls,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SmtpTls {
+    /// Upgrade a plain connection (usually port 587).
+    #[default]
+    Starttls,
+    /// TLS from the start (usually port 465).
+    Tls,
+    /// No encryption: only for a relay on the same host or private network.
+    None,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ResendConfig {
+    /// From `ADVENT_MAIL__RESEND__API_KEY`.
+    pub api_key: Option<String>,
+    /// The Resend API base address.
+    pub endpoint: String,
+}
+
+impl Default for MailConfig {
+    fn default() -> Self {
+        Self {
+            sender: MailSender::Log,
+            from: None,
+            log_dir: None,
+            smtp: SmtpConfig::default(),
+            resend: ResendConfig::default(),
+        }
+    }
+}
+
+impl Default for SmtpConfig {
+    fn default() -> Self {
+        Self {
+            host: None,
+            port: 587,
+            username: None,
+            password: None,
+            tls: SmtpTls::Starttls,
+        }
+    }
+}
+
+impl Default for ResendConfig {
+    fn default() -> Self {
+        Self {
+            api_key: None,
+            endpoint: "https://api.resend.com".into(),
+        }
+    }
 }
 
 /// Protection for the server itself, always on. Per client address.
@@ -44,6 +135,8 @@ pub struct Limits {
     pub signin_per_hour: u32,
     /// Answer checks running at once, across all clients.
     pub concurrent_checks: usize,
+    /// Sign-in links sent to one email address, whoever asks.
+    pub links_per_hour: u32,
 }
 
 impl Default for ServerConfig {
@@ -55,6 +148,7 @@ impl Default for ServerConfig {
             insecure_cookies: false,
             trust_proxy: false,
             limits: Limits::default(),
+            mail: MailConfig::default(),
         }
     }
 }
@@ -66,6 +160,7 @@ impl Default for Limits {
             guesses_per_minute: 10,
             signin_per_hour: 20,
             concurrent_checks: 4,
+            links_per_hour: 3,
         }
     }
 }
@@ -93,7 +188,44 @@ impl ServerConfig {
         if config.limits.concurrent_checks == 0 {
             anyhow::bail!("`limits.concurrent_checks` must be at least 1");
         }
+        config.check_mail()?;
         Ok(config)
+    }
+}
+
+impl ServerConfig {
+    /// A real sender needs the details to send with, and `public_url` to
+    /// build links players can open.
+    fn check_mail(&self) -> anyhow::Result<()> {
+        let mail = &self.mail;
+        if mail.sender == MailSender::Log {
+            return Ok(());
+        }
+        let need = |missing: bool, key: &str| -> anyhow::Result<()> {
+            if missing {
+                anyhow::bail!("`{key}` is required to send email (`mail.sender` is not `log`)");
+            }
+            Ok(())
+        };
+        need(self.public_url.is_none(), "public_url")?;
+        need(mail.from.is_none(), "mail.from")?;
+        match mail.sender {
+            MailSender::Smtp => need(mail.smtp.host.is_none(), "mail.smtp.host"),
+            MailSender::Resend => need(
+                mail.resend.api_key.is_none(),
+                "mail.resend.api_key (ADVENT_MAIL__RESEND__API_KEY)",
+            ),
+            MailSender::Log => Ok(()),
+        }
+    }
+
+    /// Where links in emails point.
+    pub fn link_base(&self) -> String {
+        self.public_url
+            .clone()
+            .unwrap_or_else(|| format!("http://{}", self.listen))
+            .trim_end_matches('/')
+            .to_string()
     }
 }
 
@@ -138,6 +270,30 @@ mod tests {
             )
             .unwrap();
             assert_eq!(config.listen, "127.0.0.1:7000", "flags win");
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn serve_config_mail_needs_its_details() {
+        Jail::expect_with(|jail| {
+            jail.set_env("ADVENT_MAIL__SENDER", "smtp");
+            let err = ServerConfig::load(None, &Overrides::default()).unwrap_err();
+            assert!(format!("{err:#}").contains("public_url"), "{err:#}");
+            jail.set_env("ADVENT_PUBLIC_URL", "https://advent.acme.com/");
+            jail.set_env("ADVENT_MAIL__FROM", "Advent <advent@acme.com>");
+            let err = ServerConfig::load(None, &Overrides::default()).unwrap_err();
+            assert!(format!("{err:#}").contains("mail.smtp.host"), "{err:#}");
+            jail.set_env("ADVENT_MAIL__SMTP__HOST", "smtp.acme.com");
+            jail.set_env("ADVENT_MAIL__SMTP__PASSWORD", "s3cret");
+            let config = ServerConfig::load(None, &Overrides::default()).unwrap();
+            assert_eq!(config.mail.smtp.password.as_deref(), Some("s3cret"));
+            assert_eq!(config.mail.smtp.port, 587);
+            assert_eq!(config.link_base(), "https://advent.acme.com");
+
+            jail.set_env("ADVENT_MAIL__SENDER", "resend");
+            let err = ServerConfig::load(None, &Overrides::default()).unwrap_err();
+            assert!(format!("{err:#}").contains("api_key"), "{err:#}");
             Ok(())
         });
     }
