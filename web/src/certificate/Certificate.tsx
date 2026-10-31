@@ -1,13 +1,13 @@
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 
 import { api, type EventInfo } from "@/api";
+import { client, useEventProgress } from "@/client";
 import { Button } from "@/components/ui/button";
 import {
   InsecureContextError,
   openFinal,
   type Certificate as Payload,
 } from "@/crypto";
-import { useEventProgress, useProgress } from "@/store";
 import { download, svgToPng } from "./exportPng";
 import { Rewards } from "./Rewards";
 
@@ -37,7 +37,7 @@ export function CertificatePanel({
   async function unlock(e: FormEvent) {
     e.preventDefault();
     if (!complete || !name.trim()) return;
-    useProgress.getState().setName(event.id, name.trim());
+    await client().setName(event.id, name.trim());
     try {
       const opened = await openFinal(
         words as string[],

@@ -1,17 +1,22 @@
 import { type FormEvent, useId, useState } from "react";
-
+import { client } from "@/client";
 import { Button } from "@/components/ui/button";
-import { exportCode, importCode, useEventProgress, useProgress } from "@/store";
 
-/** Copy progress to another browser, or restore it, with a code. */
+/**
+ * Copy progress to another browser, or restore it, with a code. Only where
+ * progress lives in the browser: a server already has it on every device.
+ */
 export function Progress({ event }: { event: string }) {
-  const progress = useEventProgress(event);
+  const transfer = client().transfer;
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const inputId = useId();
 
+  if (!transfer) return null;
+
   async function copyCode() {
-    const value = exportCode(event, progress);
+    if (!transfer) return;
+    const value = transfer.exportCode(event);
     try {
       await navigator.clipboard.writeText(value);
       setMessage("Progress code copied.");
@@ -23,12 +28,10 @@ export function Progress({ event }: { event: string }) {
 
   function restore(e: FormEvent) {
     e.preventDefault();
-    const imported = importCode(event, code);
-    if (!imported) {
+    if (!transfer?.importCode(event, code)) {
       setMessage("That is not a progress code for this calendar.");
       return;
     }
-    useProgress.getState().replace(event, imported);
     setMessage("Progress restored.");
     setCode("");
   }

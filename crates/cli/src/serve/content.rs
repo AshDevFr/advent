@@ -45,7 +45,9 @@ fn options(
         base: "/",
         opener: Opener::Release(identities.to_vec()),
         skip_unsealed,
-        head_html: None,
+        // Read by the frontend at start, so it picks the server client
+        // without waiting for a request.
+        head_html: Some(r#"<meta name="advent-mode" content="server">"#.into()),
         server: true,
     }
 }

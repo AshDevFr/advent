@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useId, useState } from "react";
 
 import { api, type DayPage } from "@/api";
+import { client, useEventProgress } from "@/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,18 +9,11 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  InsecureContextError,
-  normalize,
-  openWord,
-  type WordLock,
-} from "@/crypto";
-import { useEventProgress, useProgress } from "@/store";
+import { InsecureContextError, normalize } from "@/crypto";
 import { Markdown } from "./Markdown";
 
 interface Loaded {
   page: DayPage;
-  locks: WordLock[];
   hints: string[];
 }
 
@@ -42,14 +36,8 @@ export function DoorPanel({
   const word = progress.words[day];
 
   useEffect(() => {
-    Promise.all([
-      api.day(event, day),
-      api.locks(event, day),
-      api.hints(event, day),
-    ])
-      .then(([page, locks, hints]) =>
-        setData({ page, locks: locks.word_locks, hints: hints.hints }),
-      )
+    Promise.all([api.day(event, day), api.hints(event, day)])
+      .then(([page, hints]) => setData({ page, hints: hints.hints }))
       .catch(() => setFailed(true));
   }, [event, day]);
 
@@ -73,7 +61,7 @@ export function DoorPanel({
             {word ? (
               <Solved word={word} />
             ) : (
-              <AnswerForm event={event} day={day} locks={data.locks} />
+              <AnswerForm event={event} day={day} />
             )}
             <Hints event={event} day={day} hints={data.hints} />
           </>
@@ -83,20 +71,11 @@ export function DoorPanel({
   );
 }
 
-function AnswerForm({
-  event,
-  day,
-  locks,
-}: {
-  event: string;
-  day: number;
-  locks: WordLock[];
-}) {
+function AnswerForm({ event, day }: { event: string; day: number }) {
   const [guess, setGuess] = useState("");
   const [checking, setChecking] = useState(false);
   const [wrong, setWrong] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const { solve, attempt } = useProgress.getState();
   const inputId = useId();
 
   async function submit(e: FormEvent) {
@@ -105,16 +84,12 @@ function AnswerForm({
     setChecking(true);
     setProblem(null);
     try {
-      let found: string | null = null;
-      for (const lock of locks) {
-        found = await openWord(guess, lock);
-        if (found) break;
-      }
-      attempt(event, day);
-      if (found) {
-        solve(event, day, found);
-      } else {
+      const result = await client().guess(event, day, guess);
+      if (result.kind === "wrong") {
         setWrong(guess);
+      } else if (result.kind === "limited") {
+        setWrong(null);
+        setProblem(tooMany(result.retryAt));
       }
     } catch (e) {
       setWrong(null);
@@ -159,6 +134,15 @@ function AnswerForm({
       )}
     </form>
   );
+}
+
+/** The wait before the next guess, in words. */
+function tooMany(retryAt: string): string {
+  const minutes = Math.max(
+    1,
+    Math.ceil((Date.parse(retryAt) - Date.now()) / 60_000),
+  );
+  return `Too many guesses for now. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
 }
 
 function Solved({ word }: { word: string }) {
@@ -209,9 +193,7 @@ function Hints({
           variant="ghost"
           size="sm"
           className="self-start"
-          onClick={() =>
-            useProgress.getState().revealHint(event, day, hints.length)
-          }
+          onClick={() => client().revealHint(event, day, hints.length)}
         >
           Show a hint ({left} available)
         </Button>

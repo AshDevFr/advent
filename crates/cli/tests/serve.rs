@@ -37,7 +37,9 @@ fn serve_hosts_released_days_without_locks() {
     assert_eq!(site["mode"], "server");
     let page = server.get(&c, "/");
     assert_eq!(page.status(), StatusCode::OK);
-    assert!(page.text().unwrap().contains("<html"));
+    let html = page.text().unwrap();
+    assert!(html.contains("<html"));
+    assert!(html.contains(r#"<meta name="advent-mode" content="server">"#));
     assert_eq!(
         server.get(&c, "/api/nothing").status(),
         StatusCode::NOT_FOUND

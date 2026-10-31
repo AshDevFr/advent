@@ -54,7 +54,8 @@ pub struct Options<'a> {
     /// Leave out released days that are not sealed yet instead of failing
     /// (a preview of a calendar still being written).
     pub skip_unsealed: bool,
-    /// Extra HTML inserted before `</head>` in every page (preview only).
+    /// Extra HTML inserted before `</head>` in every page (the preview's
+    /// script, the server's mode marker).
     pub head_html: Option<String>,
     /// For `advent serve`: leave out the word locks (the server checks
     /// guesses, and locks in the browser would allow unlimited offline

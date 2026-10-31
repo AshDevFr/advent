@@ -9,6 +9,7 @@ import {
 } from "@/api";
 import { BrowserTab } from "@/BrowserTab";
 import { CertificatePanel } from "@/certificate/Certificate";
+import { useEventProgress } from "@/client";
 import { Countdown } from "@/components/Countdown";
 import { type Door, DoorGrid } from "@/components/DoorGrid";
 import { KeyStrip } from "@/components/KeyStrip";
@@ -16,7 +17,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { DoorPanel } from "@/door/DoorPanel";
 import { Progress } from "@/door/Progress";
 import { Notices } from "@/notices/Notices";
-import { useEventProgress } from "@/store";
 import { useThemeCss } from "@/useThemeCss";
 import { Message } from "./Landing";
 
