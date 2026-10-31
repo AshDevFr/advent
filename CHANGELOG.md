@@ -2,6 +2,12 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.5.1] - 2026-10-31
+
+### Bug Fixes
+
+- Render tables in puzzles
+
 ## [0.5.0] - 2026-10-31
 
 ### Features
