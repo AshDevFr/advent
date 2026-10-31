@@ -28,6 +28,14 @@ advent keeper seal 2026
 
 The words are read from the days' source copies (it needs the editors key), so nobody retypes them. Sealing refuses while any day is missing. If a day is re-sealed later with a different word, `advent verify` reports the certificate as stale: seal it again.
 
+## Preview it
+
+```sh
+advent preview --all-open --solved
+```
+
+opens the calendar on your machine with every word already collected: type any name in the certificate panel to see the real certificate and download the PNG.
+
 ## What players get
 
 When every word is collected, the player enters a name and the certificate opens in the browser. It shows your brand, the player's name, the edition and its year, and can be downloaded as a PNG. It does not show hints used or attempts: those live in the player's browser and could be reset, so they would prove nothing.

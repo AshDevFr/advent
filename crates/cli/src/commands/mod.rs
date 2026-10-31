@@ -1,6 +1,7 @@
 pub mod build;
 pub mod init;
 pub mod keeper;
+pub mod preview;
 pub mod reseal;
 pub mod schedule;
 pub mod seal;

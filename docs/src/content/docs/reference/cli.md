@@ -33,6 +33,16 @@ Re-encrypt sources and re-wrap day and hint keys to the key lists in `advent.yam
 
 Seal the event's certificate from `final/final.yaml`, with the words read from the days' sources. Needs the editors key; refuses while a day is unsealed.
 
+### `advent preview`
+
+Build the calendar with the editors key (no release key needed) into a temporary folder outside the repository and serve it on `http://127.0.0.1:4321/`, this machine only. Days not sealed yet are left out with a note. The folder is removed when you stop it with Ctrl-C.
+
+- `--until <YYYY-MM-DD>`: show the calendar as of the end of that date.
+- `--all-open`: open every day and every hint regardless of the date.
+- `--solved`: pre-fill every word, so the certificate can be unlocked right away with any name.
+- `--port <N>`: the port (default 4321).
+- `--out <DIR>`: write the preview there and exit instead of serving it. It can contain unreleased days: keep it out of git.
+
 ### `advent schedule [EVENT]`
 
 Print when each day opens and when its hints appear.

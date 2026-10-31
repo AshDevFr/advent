@@ -25,6 +25,8 @@ tar = "0.4"
 # Pure-Rust codecs only (lossless WebP output, no libwebp), so cross-compiling
 # the binary needs no C toolchain.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+tempfile = "3"
+ctrlc = "3"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

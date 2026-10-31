@@ -62,6 +62,25 @@ enum Command {
         #[arg(long, env = "ADVENT_BASE", default_value = "/")]
         base: String,
     },
+    /// Preview the calendar on this machine with the editors key, including
+    /// days not released yet; served on 127.0.0.1 only.
+    Preview {
+        /// Show the calendar as of the end of this date (YYYY-MM-DD).
+        #[arg(long)]
+        until: Option<chrono::NaiveDate>,
+        /// Open every day and hint regardless of the date.
+        #[arg(long)]
+        all_open: bool,
+        /// Pre-fill every word, so the certificate can be unlocked right away.
+        #[arg(long)]
+        solved: bool,
+        /// Port on 127.0.0.1.
+        #[arg(long, default_value_t = 4321)]
+        port: u16,
+        /// Write the preview to this folder and exit instead of serving it.
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
     /// Print when each day opens.
     Schedule { event: Option<String> },
     /// Check that an event repo is complete and its sealed files open.
@@ -101,6 +120,19 @@ fn main() -> anyhow::Result<()> {
             command: KeeperCommand::Seal { event },
         } => commands::keeper::run(&event),
         Command::Build { until, out, base } => commands::build::run(until, &out, &base),
+        Command::Preview {
+            until,
+            all_open,
+            solved,
+            port,
+            out,
+        } => commands::preview::run(commands::preview::Args {
+            until,
+            all_open,
+            solved,
+            port,
+            out,
+        }),
         Command::Schedule { event } => commands::schedule::run(event.as_deref()),
         Command::Verify {
             event,

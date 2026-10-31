@@ -8,7 +8,7 @@
 use std::fs;
 use std::path::Path;
 
-use advent_core::format::{self, Bundle};
+use advent_core::format::{self, Bundle, SealedDay};
 use advent_core::model::{Brand, Event, Theme};
 use advent_core::primitives;
 use advent_core::schedule::{end_of_date, first_release, hints_due, is_released, notice_published};
@@ -22,27 +22,91 @@ use serde::Serialize;
 
 use crate::commands::{keeper, reseal};
 use crate::config::{find_repo_root, load_repo_config, release_identities};
-use crate::day::SEALED_FILE;
+use crate::day::{self, DayKeys, SEALED_FILE, SOURCE_FILE};
 
 /// Marks a folder as written by `advent build`, so it can be replaced safely.
 const MARKER: &str = ".advent-build";
 
-pub fn run(until: Option<NaiveDate>, out: &Path, base: &str) -> anyhow::Result<()> {
+/// The moment a build shows.
+pub enum Moment {
+    Now,
+    /// The end of this date in each event's timezone.
+    Until(NaiveDate),
+    /// Every day and hint open (preview only).
+    AllOpen,
+}
+
+/// How a build opens the days it publishes.
+pub enum Opener {
+    /// Unwrap day and hint keys with the release key: what CI does.
+    Release(Vec<x25519::Identity>),
+    /// Read the keys from each day's source copy with the editors key, so
+    /// authors can preview without the release key. Never used to deploy.
+    Editors(Vec<x25519::Identity>),
+}
+
+pub struct Options<'a> {
+    pub moment: Moment,
+    pub base: &'a str,
+    pub opener: Opener,
+    /// Leave out released days that are not sealed yet instead of failing
+    /// (a preview of a calendar still being written).
+    pub skip_unsealed: bool,
+    /// Extra HTML inserted before `</head>` in every page (preview only).
+    pub head_html: Option<String>,
+}
+
+pub fn check_base(base: &str) -> anyhow::Result<()> {
     if !(base.starts_with('/') && base.ends_with('/')) || base.contains(['"', '<', '>', ' ']) {
         bail!(
             "--base must be a path that starts and ends with a slash, such as / or /demo/ (got {base:?})"
         );
     }
+    Ok(())
+}
+
+pub fn run(until: Option<NaiveDate>, out: &Path, base: &str) -> anyhow::Result<()> {
+    check_base(base)?;
     let root = find_repo_root(Path::new("."))?;
     load_repo_config(&root)?;
-    let release = release_identities()?;
-    let event_dirs = reseal::event_dirs(&root, None)?;
+    let options = Options {
+        moment: until.map_or(Moment::Now, Moment::Until),
+        base,
+        opener: Opener::Release(release_identities()?),
+        skip_unsealed: false,
+        head_html: None,
+    };
+    let index = build_site(&root, out, &options)?;
+    println!(
+        "Built {} event(s) into {}{}.",
+        index.events.len(),
+        out.display(),
+        until.map_or(String::new(), |d| format!(" as of the end of {d}"))
+    );
+    Ok(())
+}
+
+/// Write the whole site into `out` and return its index.
+pub fn build_site(root: &Path, out: &Path, options: &Options) -> anyhow::Result<SiteIndex> {
+    let base = options.base;
+    let event_dirs = reseal::event_dirs(root, None)?;
     let ids: Vec<String> = event_dirs
         .iter()
         .filter_map(|d| d.file_name()?.to_str().map(str::to_owned))
         .collect();
     prepare_out(out)?;
     crate::web::write(out, &ids, base)?;
+    if let Some(html) = &options.head_html {
+        for page in std::iter::once(out.join("index.html"))
+            .chain(ids.iter().map(|id| out.join(id).join("index.html")))
+        {
+            let text = fs::read_to_string(&page)?;
+            fs::write(
+                &page,
+                text.replacen("</head>", &format!("{html}</head>"), 1),
+            )?;
+        }
+    }
 
     let brand = read_optional::<Brand>(&root.join("brand/brand.yaml"), Brand::from_yaml)?;
     let logo = match brand.as_ref().and_then(|b| b.logo.as_ref()) {
@@ -59,7 +123,7 @@ pub fn run(until: Option<NaiveDate>, out: &Path, base: &str) -> anyhow::Result<(
 
     let mut events = Vec::new();
     for event_dir in event_dirs {
-        let info = build_event(&event_dir, until, brand.as_ref(), &release, out)
+        let info = build_event(&event_dir, options, brand.as_ref(), out)
             .with_context(|| format!("building {}", event_dir.display()))?;
         events.push(info);
     }
@@ -74,20 +138,13 @@ pub fn run(until: Option<NaiveDate>, out: &Path, base: &str) -> anyhow::Result<(
         events,
     };
     write_json(&out.join("site.json"), &index)?;
-    println!(
-        "Built {} event(s) into {}{}.",
-        index.events.len(),
-        out.display(),
-        until.map_or(String::new(), |d| format!(" as of the end of {d}"))
-    );
-    Ok(())
+    Ok(index)
 }
 
 fn build_event(
     event_dir: &Path,
-    until: Option<NaiveDate>,
+    options: &Options,
     brand: Option<&Brand>,
-    release: &[x25519::Identity],
     out: &Path,
 ) -> anyhow::Result<EventInfo> {
     let id = event_dir
@@ -96,9 +153,11 @@ fn build_event(
         .context("event folder name is not UTF-8")?
         .to_string();
     let event = Event::from_yaml(&fs::read_to_string(event_dir.join("event.yaml"))?)?;
-    let now: DateTime<Utc> = match until {
-        Some(date) => end_of_date(event.timezone, date),
-        None => Utc::now(),
+    let now: DateTime<Utc> = match options.moment {
+        Moment::Until(date) => end_of_date(event.timezone, date),
+        Moment::Now => Utc::now(),
+        // Far enough that every day and every hint is out.
+        Moment::AllOpen => DateTime::<Utc>::MAX_UTC - chrono::Duration::days(1000),
     };
     let site = out.join(&id);
     fs::create_dir_all(&site)?;
@@ -122,13 +181,25 @@ fn build_event(
         let day_dir = event_dir.join(format!("day{n:02}"));
         let sealed_path = day_dir.join(SEALED_FILE);
         if !sealed_path.is_file() {
+            if options.skip_unsealed {
+                eprintln!("note: day {n} is not sealed yet; left out of the preview");
+                continue;
+            }
             bail!(
                 "day {n} is released but not sealed ({} missing)",
                 sealed_path.display()
             );
         }
-        let kind = publish_day(&event, n, &fs::read(&sealed_path)?, now, release, &site)
-            .with_context(|| format!("day {n}"))?;
+        let kind = publish_day(
+            &event,
+            n,
+            &fs::read(&sealed_path)?,
+            &day_dir,
+            now,
+            &options.opener,
+            &site,
+        )
+        .with_context(|| format!("day {n}"))?;
         released.push(n);
         types.insert(n, kind);
     }
@@ -166,19 +237,43 @@ fn build_event(
     Ok(info)
 }
 
+/// The day key and hint keys of a sealed day, by whichever key the build has.
+fn day_keys(sealed: &SealedDay, day_dir: &Path, opener: &Opener) -> anyhow::Result<DayKeys> {
+    match opener {
+        Opener::Release(ids) => Ok(DayKeys {
+            day_key: wrap::unwrap_key(&sealed.day_key, ids)
+                .context("the day key does not open with ADVENT_RELEASE_KEY")?,
+            hint_keys: sealed
+                .hints
+                .iter()
+                .map(|h| wrap::unwrap_key(&h.key, ids))
+                .collect::<Result<_, _>>()?,
+        }),
+        Opener::Editors(ids) => {
+            let encrypted = fs::read(day_dir.join(SOURCE_FILE))?;
+            let source = day::unpack_source(
+                &wrap::decrypt_with(&encrypted, ids)
+                    .context("source.age does not open with the editors key")?,
+            )?;
+            source.keys.context("source copy has no day keys")
+        }
+    }
+}
+
 fn publish_day(
     event: &Event,
     n: u32,
     sealed_json: &[u8],
+    day_dir: &Path,
     now: DateTime<Utc>,
-    release: &[x25519::Identity],
+    opener: &Opener,
     site: &Path,
 ) -> anyhow::Result<String> {
     let sealed = format::read_sealed_day(sealed_json)?;
     let overrides: Vec<Option<u32>> = sealed.hints.iter().map(|h| h.after).collect();
     let due = hints_due(event, n, &event.hint_days(&overrides)?, now);
-    let day_key = wrap::unwrap_key(&sealed.day_key, release)
-        .context("the day key does not open with ADVENT_RELEASE_KEY")?;
+    let keys = day_keys(&sealed, day_dir, opener)?;
+    let day_key = keys.day_key;
     let bundle: Bundle = serde_json::from_slice(&primitives::open_bundle(
         &day_key,
         sealed.bundle.iv,
@@ -209,9 +304,8 @@ fn publish_day(
     }
 
     let mut hints = Vec::new();
-    for hint in sealed.hints.iter().take(due) {
-        let key = wrap::unwrap_key(&hint.key, release)?;
-        hints.push(primitives::open_hint(&key, hint.iv, &hint.ct)?);
+    for (hint, key) in sealed.hints.iter().zip(&keys.hint_keys).take(due) {
+        hints.push(primitives::open_hint(key, hint.iv, &hint.ct)?);
     }
     write_json(&assets.join("hint.json"), &HintsDue { hints })?;
     write_json(

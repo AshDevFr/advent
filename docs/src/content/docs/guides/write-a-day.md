@@ -50,6 +50,14 @@ advent seal events/2026/day05
 
 Sealing validates everything, converts images, encrypts the day with a fresh key, locks the word once per answer, and checks that everything opens again before writing anything. It needs only the public keys in `advent.yaml`, never a private key.
 
+## Preview
+
+```sh
+advent preview --all-open
+```
+
+serves the calendar on `http://127.0.0.1:4321/` with every sealed day open, so you can see and solve your day as players will. It uses the editors key, never the release key, and only listens on your machine.
+
 ## Edit a sealed day
 
 If the plaintext is still on your machine, edit it and seal again. If not, anyone with the editors key can restore it:
