@@ -30,7 +30,8 @@ export interface EventInfo {
   /** Type label of each released day, keyed by day number. */
   types: Record<string, string>;
   background: string | null;
-  doors: string | null;
+  /** Door artwork, taken in turn: door N uses entry (N - 1) % length. */
+  doors: string[];
 }
 
 export interface DayPage {

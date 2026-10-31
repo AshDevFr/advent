@@ -21,6 +21,8 @@ palette:
 
 Same shape and keys as in [brand.yaml](/reference/brand-yaml/). Values here win over the brand's, for their scheme only.
 
+The palette also colours this event's card on the landing page, where every event is listed; the rest of that page keeps the brand's colours. The card uses `surface-raised`, `text`, `text-muted`, `primary` and `border`, so set `surface-raised` to make the card stand out.
+
 ### `light`
 
 **Type** map of palette key to CSS colour · **Optional** · Under `palette`
@@ -37,10 +39,16 @@ This edition's dark colours; missing keys keep the brand's dark ones (then the e
 
 **Type** file name · **Optional**
 
-An image next to `theme.yaml`, shown behind the whole calendar under a wash of the page colour so text stays readable in light and dark mode. A soft texture or illustration works best; SVG, PNG or WebP.
+An image next to `theme.yaml`, shown behind the whole calendar under a wash of the page colour so text stays readable in light and dark mode, and behind this event's card on the landing page. A soft texture or illustration works best; SVG, PNG or WebP.
 
 ### `doors`
 
-**Type** file name · **Optional**
+**Type** file name, or list of file names · **Optional**
 
-Artwork next to `theme.yaml`, shown on locked doors, like wrapping paper. Open and solved doors stay plain. A small repeating pattern works best.
+Artwork next to `theme.yaml`, shown on locked doors, like wrapping paper. Open and solved doors stay plain. With one file every door uses it; with a list the doors take the images in turn (door 1 the first, and back to the first after the last), so 24 images give every door its own:
+
+```yaml
+doors: [door01.png, door02.png, door03.png]
+```
+
+The door's number and opening date sit on the artwork with a halo in the door colour; a calm picture with some empty space still reads best.

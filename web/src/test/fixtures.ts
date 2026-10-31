@@ -14,7 +14,7 @@ export const event = (over: Partial<EventInfo> = {}): EventInfo => ({
   notices: [],
   types: { 1: "teaser", 2: "code", 3: "company" },
   background: null,
-  doors: null,
+  doors: [],
   ...over,
 });
 

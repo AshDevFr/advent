@@ -43,6 +43,29 @@ describe("landing page", () => {
     expect(link).toHaveAttribute("href", "2026/");
   });
 
+  it("scopes each event's card for its theme colours", async () => {
+    serve({ "/site.json": site([event({ opens_at: null })]) });
+    render(<App path="/" />);
+    const heading = await screen.findByRole("heading", { name: "Advent 2026" });
+    const card = heading.closest("section");
+    expect(card).toHaveAttribute("data-event", "2026");
+    expect(card).toHaveClass("text-card-foreground");
+  });
+
+  it("puts a themed event's background behind its card", async () => {
+    serve({
+      "/site.json": site([
+        event({ opens_at: null, background: "2026/theme/snow.png" }),
+      ]),
+    });
+    render(<App path="/" />);
+    const heading = await screen.findByRole("heading", { name: "Advent 2026" });
+    const card = heading.closest("section") as HTMLElement;
+    expect(within(card).getByTestId("card-backdrop")).toHaveStyle({
+      backgroundImage: 'url("2026/theme/snow.png")',
+    });
+  });
+
   it("explains when the site cannot be loaded", async () => {
     serve({});
     render(<App path="/" />);
@@ -204,7 +227,7 @@ describe("branding on the calendar", () => {
       "/2026/event.json": event({
         headline: "Light the way",
         background: "2026/theme/background.svg",
-        doors: "2026/theme/doors.svg",
+        doors: ["2026/theme/fox.svg", "2026/theme/owl.svg"],
       }),
       "/site.json": site([event()]),
     });
@@ -225,8 +248,12 @@ describe("branding on the calendar", () => {
       "2026/theme/background.svg",
     );
 
-    const locked = within(grid).getByRole("img", { name: /Day 4, locked/ });
-    expect(locked.style.backgroundImage).toContain("2026/theme/doors.svg");
+    // Doors take the artwork in turn: day 4 the second, day 5 the first.
+    const day4 = within(grid).getByRole("img", { name: /Day 4, locked/ });
+    expect(day4.style.backgroundImage).toContain("2026/theme/owl.svg");
+    const day5 = within(grid).getByRole("img", { name: /Day 5, locked/ });
+    expect(day5.style.backgroundImage).toContain("2026/theme/fox.svg");
+    expect(within(day5).getByText("5")).toHaveClass("text-foreground");
     const open = within(grid).getByRole("button", { name: "Day 2, open" });
     expect(open.style.backgroundImage).toBe("");
   });

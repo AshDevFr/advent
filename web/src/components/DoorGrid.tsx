@@ -22,17 +22,24 @@ export function DoorGrid({
 }: {
   doors: Door[];
   onOpen: (day: number) => void;
-  /** The theme's door artwork, shown on locked doors like wrapping paper. */
-  artwork?: string | null;
+  /** The theme's door artwork, shown on locked doors like wrapping paper;
+   * the doors take the images in turn. */
+  artwork?: string[];
 }) {
   // A wash of the door colour keeps the number and date readable on top.
-  const wrapped = artwork
-    ? {
-        backgroundImage: `linear-gradient(color-mix(in srgb, var(--surface-raised) 55%, transparent), color-mix(in srgb, var(--surface-raised) 55%, transparent)), url("${artwork}")`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }
-    : undefined;
+  const wrapped = (day: number) => {
+    if (!artwork?.length) return undefined;
+    const image = artwork[(day - 1) % artwork.length];
+    return {
+      backgroundImage: `linear-gradient(color-mix(in srgb, var(--surface-raised) 55%, transparent), color-mix(in srgb, var(--surface-raised) 55%, transparent)), url("${image}")`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+    };
+  };
+  // On artwork, a halo in the door colour lifts the text off the picture.
+  const onArt = artwork?.length
+    ? "text-foreground [text-shadow:0_0_4px_var(--surface-raised),0_0_10px_var(--surface-raised),0_1px_2px_var(--surface-raised)]"
+    : "text-muted-foreground";
   return (
     <ul
       aria-label="Calendar doors"
@@ -44,17 +51,20 @@ export function DoorGrid({
             <div
               role="img"
               aria-label={`Day ${door.day}, locked${door.opens ? `, opens ${door.opens}` : ""}`}
-              data-artwork={artwork ? "" : undefined}
-              style={wrapped}
+              data-artwork={artwork?.length ? "" : undefined}
+              style={wrapped(door.day)}
               className="flex aspect-square flex-col justify-between rounded-lg border bg-card/60 p-2.5 sm:aspect-[5/6] sm:p-3"
             >
-              <span className="font-display text-3xl font-semibold text-muted-foreground sm:text-4xl">
+              <span
+                className={cn(
+                  "font-display text-3xl font-semibold sm:text-4xl",
+                  onArt,
+                )}
+              >
                 {door.day}
               </span>
               {door.opens && (
-                <span className={cn(label, "text-muted-foreground")}>
-                  Opens {door.opens}
-                </span>
+                <span className={cn(label, onArt)}>Opens {door.opens}</span>
               )}
             </div>
           ) : (

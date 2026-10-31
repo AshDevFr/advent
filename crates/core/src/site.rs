@@ -59,7 +59,9 @@ pub struct EventInfo {
     pub notices: Vec<SiteNotice>,
     /// Paths of theme decoration relative to the site root, if any.
     pub background: Option<String>,
-    pub doors: Option<String>,
+    /// Door artwork, in order; door N uses entry (N - 1) modulo the count.
+    #[serde(default)]
+    pub doors: Vec<String>,
 }
 
 /// A published notice. `id` derives from the text, so players who dismissed
@@ -141,6 +143,8 @@ pub enum ThemeError {
     BadKey(String),
     #[error("palette value {value:?} for {key:?} contains a character CSS would misread")]
     BadValue { key: String, value: String },
+    #[error("event id {0:?} must use only letters, digits, '-', '_' and '.' to be styled")]
+    BadEventId(String),
 }
 
 fn rule(tokens: &BTreeMap<String, String>) -> Result<String, ThemeError> {
@@ -186,6 +190,41 @@ pub fn theme_css(brand: Option<&Brand>, theme: Option<&Theme>) -> Result<String,
         ":root {{\n{light}}}\n\
          @media (prefers-color-scheme: dark) {{\n:root:not([data-theme=\"light\"]) {{\n{dark}}}\n}}\n\
          :root[data-theme=\"dark\"] {{\n{dark}}}\n"
+    ))
+}
+
+/// One event's palette scoped to `[data-event="<id>"]`, so a page listing
+/// several events (the landing page) can show each in its own colours.
+/// Same layering and scheme rules as [`theme_css`].
+pub fn event_scope_css(
+    id: &str,
+    brand: Option<&Brand>,
+    theme: Option<&Theme>,
+) -> Result<String, ThemeError> {
+    let id_ok = !id.is_empty()
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'));
+    if !id_ok {
+        return Err(ThemeError::BadEventId(id.to_string()));
+    }
+    let light = rule(&resolve_scheme(
+        Scheme::Light,
+        &default_tokens(Scheme::Light),
+        brand,
+        theme,
+    ))?;
+    let dark = rule(&resolve_scheme(
+        Scheme::Dark,
+        &default_tokens(Scheme::Dark),
+        brand,
+        theme,
+    ))?;
+    let scope = format!("[data-event=\"{id}\"]");
+    Ok(format!(
+        "{scope} {{\n{light}}}\n\
+         @media (prefers-color-scheme: dark) {{\n:root:not([data-theme=\"light\"]) {scope} {{\n{dark}}}\n}}\n\
+         :root[data-theme=\"dark\"] {scope} {{\n{dark}}}\n"
     ))
 }
 
@@ -243,6 +282,39 @@ mod tests {
         let css = theme_css(Some(&brand(&[("primary", "#0055aa")], &[])), Some(&theme)).unwrap();
         assert!(css.contains("--primary: #112233;"));
         assert!(!css.contains("#0055aa"));
+    }
+
+    #[test]
+    fn site_event_scope_css_puts_each_palette_on_its_card() {
+        let theme = Theme {
+            palette: Palettes {
+                light: map(&[("primary", "#c62828")]),
+                dark: map(&[("primary", "#ff7a6e")]),
+            },
+            ..Theme::default()
+        };
+        let css = event_scope_css("2026-kids", None, Some(&theme)).unwrap();
+        let (light, rest) = css
+            .split_once("@media (prefers-color-scheme: dark)")
+            .unwrap();
+        let (system_dark, chosen_dark) = rest.split_once(":root[data-theme=\"dark\"]").unwrap();
+        assert!(light.starts_with("[data-event=\"2026-kids\"] {"));
+        assert!(light.contains("--primary: #c62828;"));
+        assert!(!light.contains(":root {"), "nothing outside the card");
+        assert!(
+            system_dark.contains(":root:not([data-theme=\"light\"]) [data-event=\"2026-kids\"] {")
+        );
+        assert!(system_dark.contains("--primary: #ff7a6e;"));
+        assert!(chosen_dark.starts_with(" [data-event=\"2026-kids\"] {"));
+        assert!(chosen_dark.contains("--primary: #ff7a6e;"));
+    }
+
+    #[test]
+    fn site_event_scope_css_rejects_ids_that_break_the_selector() {
+        assert!(matches!(
+            event_scope_css("a\"] body { x", None, None),
+            Err(ThemeError::BadEventId(_))
+        ));
     }
 
     #[test]

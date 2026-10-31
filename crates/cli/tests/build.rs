@@ -165,6 +165,31 @@ fn build_is_identical_for_the_same_date() {
 }
 
 #[test]
+fn build_publishes_a_list_of_door_artwork_in_order() {
+    let repo = sample_event();
+    for file in ["a.png", "b.png"] {
+        fs::copy(
+            repo.root.join("examples/day06/hidden.png"),
+            repo.event_dir().join(file),
+        )
+        .unwrap();
+    }
+    fs::write(
+        repo.event_dir().join("theme.yaml"),
+        "doors: [b.png, a.png]\n",
+    )
+    .unwrap();
+    let out = build(&repo, "2026-12-03", "dist");
+    let event: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("2026/event.json")).unwrap()).unwrap();
+    assert_eq!(
+        event["doors"],
+        serde_json::json!(["2026/theme/b.png", "2026/theme/a.png"])
+    );
+    assert!(out.join("2026/theme/a.png").is_file());
+}
+
+#[test]
 fn build_writes_brand_and_theme() {
     let repo = sample_event();
     fs::write(
@@ -190,6 +215,11 @@ fn build_writes_brand_and_theme() {
         root_css.contains("--primary: #e3a54f;"),
         "brand dark primary"
     );
+    // The landing page lists every event, each in its own colours.
+    let (root_rules, scoped) = root_css.split_once("[data-event=\"2026\"] {").unwrap();
+    assert!(!root_rules.contains("#112233"), "the page keeps the brand");
+    assert!(scoped.contains("--primary: #112233;"));
+    assert!(scoped.contains("--primary: #ccddee;"));
     let event_css = fs::read_to_string(out.join("2026/theme.css")).unwrap();
     assert!(
         event_css.contains("--primary: #112233;"),

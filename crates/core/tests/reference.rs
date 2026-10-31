@@ -9,8 +9,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use advent_core::model::{
-    Attempts, Brand, DayMeta, Event, FinalPayload, Hint, ImagePosition, Keys, Notice, Palettes,
-    RepoConfig, RewardSpec, Story, Theme,
+    Attempts, Brand, DayMeta, DoorArt, Event, FinalPayload, Hint, ImagePosition, Keys, Notice,
+    Palettes, RepoConfig, RewardSpec, Story, Theme,
 };
 use serde::Serialize;
 
@@ -90,7 +90,7 @@ fn reference_documents_theme_yaml() {
     let theme = Theme {
         palette: palettes(),
         background: Some("bg.webp".into()),
-        doors: Some("doors.webp".into()),
+        doors: Some(DoorArt::One("doors.webp".into())),
     };
     assert_documented("theme-yaml.md", fields(&theme));
 }

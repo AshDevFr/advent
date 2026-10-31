@@ -13,7 +13,8 @@ use advent_core::model::{Brand, Event, Theme};
 use advent_core::primitives;
 use advent_core::schedule::{end_of_date, first_release, hints_due, is_released, notice_published};
 use advent_core::site::{
-    DayPage, EventInfo, HintsDue, Locks, SiteBrand, SiteIndex, SiteNotice, theme_css,
+    DayPage, EventInfo, HintsDue, Locks, SiteBrand, SiteIndex, SiteNotice, event_scope_css,
+    theme_css,
 };
 use advent_core::wrap::{self, x25519};
 use anyhow::{Context, bail};
@@ -127,14 +128,21 @@ pub fn build_site(root: &Path, out: &Path, options: &Options) -> anyhow::Result<
         }
         None => None,
     };
-    fs::write(out.join("theme.css"), theme_css(brand.as_ref(), None)?)?;
+    let mut site_css = theme_css(brand.as_ref(), None)?;
 
     let mut events = Vec::new();
     for event_dir in event_dirs {
         let info = build_event(&event_dir, options, brand.as_ref(), out)
             .with_context(|| format!("building {}", event_dir.display()))?;
+        // The landing page shows every event; a themed one gets its colours
+        // on its own card.
+        let theme = read_optional::<Theme>(&event_dir.join("theme.yaml"), Theme::from_yaml)?;
+        if theme.is_some() {
+            site_css.push_str(&event_scope_css(&info.id, brand.as_ref(), theme.as_ref())?);
+        }
         events.push(info);
     }
+    fs::write(out.join("theme.css"), site_css)?;
 
     let index = SiteIndex {
         brand: SiteBrand {
@@ -180,7 +188,10 @@ fn build_event(
         Ok(Some(format!("{id}/theme/{file}")))
     };
     let background = decoration(theme.as_ref().and_then(|t| t.background.as_ref()))?;
-    let doors = decoration(theme.as_ref().and_then(|t| t.doors.as_ref()))?;
+    let mut doors = Vec::new();
+    for file in theme.as_ref().map(Theme::door_files).unwrap_or_default() {
+        doors.extend(decoration(Some(&file.to_string()))?);
+    }
 
     let mut released = Vec::new();
     let mut types = std::collections::BTreeMap::new();

@@ -45,9 +45,22 @@ export function Landing() {
         return (
           <section
             key={event.id}
+            // theme.css carries each themed event's palette under this
+            // attribute, so the card shows the event's own colours.
+            data-event={event.id}
             aria-labelledby={`event-${event.id}`}
-            className="flex flex-col gap-4 rounded-lg border bg-card p-6"
+            className="relative isolate flex flex-col gap-4 overflow-hidden rounded-lg border bg-card p-6 text-card-foreground"
           >
+            {event.background && (
+              <div aria-hidden="true" className="absolute inset-0 -z-10">
+                <div
+                  data-testid="card-backdrop"
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{ backgroundImage: `url("${event.background}")` }}
+                />
+                <div className="absolute inset-0 bg-card/80" />
+              </div>
+            )}
             {event.headline && (
               <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
                 {event.title}

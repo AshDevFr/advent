@@ -547,13 +547,31 @@ pub struct Theme {
     pub palette: Palettes,
     /// Image shown behind the calendar, next to `theme.yaml`.
     pub background: Option<String>,
-    /// Artwork shown on locked doors, next to `theme.yaml`.
-    pub doors: Option<String>,
+    /// Artwork shown on locked doors, next to `theme.yaml`: one file for
+    /// every door, or a list that the doors take in turn.
+    pub doors: Option<DoorArt>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DoorArt {
+    One(String),
+    Many(Vec<String>),
 }
 
 impl Theme {
     pub fn from_yaml(text: &str) -> Result<Self, ModelError> {
         yaml(text)
+    }
+
+    /// The door artwork files, in order; door N uses entry (N - 1) modulo
+    /// the count.
+    pub fn door_files(&self) -> Vec<&str> {
+        match &self.doors {
+            None => Vec::new(),
+            Some(DoorArt::One(file)) => vec![file.as_str()],
+            Some(DoorArt::Many(files)) => files.iter().map(String::as_str).collect(),
+        }
     }
 }
 
@@ -648,6 +666,15 @@ mod tests {
 
         let theme = Theme::from_yaml("background: stars.webp\n").unwrap();
         assert_eq!(theme.background.as_deref(), Some("stars.webp"));
+    }
+
+    #[test]
+    fn model_theme_doors_take_one_file_or_a_list() {
+        let one = Theme::from_yaml("doors: paper.png\n").unwrap();
+        assert_eq!(one.door_files(), ["paper.png"]);
+        let many = Theme::from_yaml("doors: [a.png, b.png, c.png]\n").unwrap();
+        assert_eq!(many.door_files(), ["a.png", "b.png", "c.png"]);
+        assert!(Theme::default().door_files().is_empty());
     }
 
     #[test]
