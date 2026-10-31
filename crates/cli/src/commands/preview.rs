@@ -50,6 +50,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         opener: Opener::Editors(editors),
         skip_unsealed: true,
         head_html,
+        server: false,
     };
 
     if let Some(out) = &args.out {
@@ -150,10 +151,10 @@ fn handle(stream: TcpStream, site: &Path) -> std::io::Result<()> {
 }
 
 #[derive(Debug, PartialEq)]
-struct Response {
-    status: u16,
-    content_type: &'static str,
-    body: Vec<u8>,
+pub(crate) struct Response {
+    pub status: u16,
+    pub content_type: &'static str,
+    pub body: Vec<u8>,
 }
 
 fn not_found() -> Response {
@@ -166,7 +167,7 @@ fn not_found() -> Response {
 
 /// The file for a request path: `/` and folders map to their
 /// `index.html`, and nothing outside `site` can be reached.
-fn respond(site: &Path, target: &str) -> Response {
+pub(crate) fn respond(site: &Path, target: &str) -> Response {
     let path = target.split(['?', '#']).next().unwrap_or("/");
     let Some(decoded) = percent_decode(path) else {
         return not_found();

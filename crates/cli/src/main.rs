@@ -3,6 +3,7 @@ mod config;
 mod day;
 mod images;
 mod random;
+mod serve;
 mod web;
 
 use std::path::PathBuf;
@@ -81,6 +82,22 @@ enum Command {
         #[arg(long)]
         out: Option<PathBuf>,
     },
+    /// Host the calendar for invited players (company edition): sign-in
+    /// links, guesses checked on the server, progress in SQLite.
+    Serve {
+        /// The event repo (default: the current folder or a parent).
+        #[arg(long)]
+        repo: Option<PathBuf>,
+        /// Server settings file (YAML).
+        #[arg(long)]
+        config: Option<PathBuf>,
+        /// Folder for the database (default: ./data).
+        #[arg(long)]
+        data: Option<PathBuf>,
+        /// Address and port to listen on (default: 0.0.0.0:8080).
+        #[arg(long)]
+        listen: Option<String>,
+    },
     /// Print when each day opens.
     Schedule { event: Option<String> },
     /// Check that an event repo is complete and its sealed files open.
@@ -132,6 +149,17 @@ fn main() -> anyhow::Result<()> {
             solved,
             port,
             out,
+        }),
+        Command::Serve {
+            repo,
+            config,
+            data,
+            listen,
+        } => serve::run(serve::Args {
+            repo,
+            config,
+            data,
+            listen,
         }),
         Command::Schedule { event } => commands::schedule::run(event.as_deref()),
         Command::Verify {

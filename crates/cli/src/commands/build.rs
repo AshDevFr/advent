@@ -34,6 +34,8 @@ pub enum Moment {
     Until(NaiveDate),
     /// Every day and hint open (preview only).
     AllOpen,
+    /// This instant (the server's clock).
+    At(DateTime<Utc>),
 }
 
 /// How a build opens the days it publishes.
@@ -54,6 +56,10 @@ pub struct Options<'a> {
     pub skip_unsealed: bool,
     /// Extra HTML inserted before `</head>` in every page (preview only).
     pub head_html: Option<String>,
+    /// For `advent serve`: leave out the word locks (the server checks
+    /// guesses, and locks in the browser would allow unlimited offline
+    /// guessing) and mark `site.json` so the frontend talks to the server.
+    pub server: bool,
 }
 
 pub fn check_base(base: &str) -> anyhow::Result<()> {
@@ -75,6 +81,7 @@ pub fn run(until: Option<NaiveDate>, out: &Path, base: &str) -> anyhow::Result<(
         opener: Opener::Release(release_identities()?),
         skip_unsealed: false,
         head_html: None,
+        server: false,
     };
     let index = build_site(&root, out, &options)?;
     println!(
@@ -136,6 +143,7 @@ pub fn build_site(root: &Path, out: &Path, options: &Options) -> anyhow::Result<
             logo,
         },
         events,
+        mode: options.server.then(|| "server".to_string()),
     };
     write_json(&out.join("site.json"), &index)?;
     Ok(index)
@@ -158,6 +166,7 @@ fn build_event(
         Moment::Now => Utc::now(),
         // Far enough that every day and every hint is out.
         Moment::AllOpen => DateTime::<Utc>::MAX_UTC - chrono::Duration::days(1000),
+        Moment::At(now) => now,
     };
     let site = out.join(&id);
     fs::create_dir_all(&site)?;
@@ -182,7 +191,7 @@ fn build_event(
         let sealed_path = day_dir.join(SEALED_FILE);
         if !sealed_path.is_file() {
             if options.skip_unsealed {
-                eprintln!("note: day {n} is not sealed yet; left out of the preview");
+                eprintln!("note: day {n} is not sealed yet; left out");
                 continue;
             }
             bail!(
@@ -196,7 +205,7 @@ fn build_event(
             &fs::read(&sealed_path)?,
             &day_dir,
             now,
-            &options.opener,
+            options,
             &site,
         )
         .with_context(|| format!("day {n}"))?;
@@ -285,13 +294,13 @@ fn publish_day(
     sealed_json: &[u8],
     day_dir: &Path,
     now: DateTime<Utc>,
-    opener: &Opener,
+    options: &Options,
     site: &Path,
 ) -> anyhow::Result<String> {
     let sealed = format::read_sealed_day(sealed_json)?;
     let overrides: Vec<Option<u32>> = sealed.hints.iter().map(|h| h.after).collect();
     let due = hints_due(event, n, &event.hint_days(&overrides)?, now);
-    let keys = day_keys(&sealed, day_dir, opener)?;
+    let keys = day_keys(&sealed, day_dir, &options.opener)?;
     let day_key = keys.day_key;
     let bundle: Bundle = serde_json::from_slice(&primitives::open_bundle(
         &day_key,
@@ -327,12 +336,14 @@ fn publish_day(
         hints.push(primitives::open_hint(key, hint.iv, &hint.ct)?);
     }
     write_json(&assets.join("hint.json"), &HintsDue { hints })?;
-    write_json(
-        &assets.join("locks.json"),
-        &Locks {
-            word_locks: sealed.word_locks,
-        },
-    )?;
+    if !options.server {
+        write_json(
+            &assets.join("locks.json"),
+            &Locks {
+                word_locks: sealed.word_locks,
+            },
+        )?;
+    }
     Ok(bundle.kind)
 }
 

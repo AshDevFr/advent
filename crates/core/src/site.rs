@@ -21,6 +21,10 @@ use crate::primitives::WordLock;
 pub struct SiteIndex {
     pub brand: SiteBrand,
     pub events: Vec<EventInfo>,
+    /// `"server"` when `advent serve` hosts the calendar: guesses and
+    /// progress then go through its API. Absent on the static site.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
