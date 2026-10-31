@@ -3,10 +3,10 @@ import starlight from "@astrojs/starlight";
 import starlightLinksValidator from "starlight-links-validator";
 import { defineConfig } from "astro/config";
 
-// The docs are the root of advent-demo.4sh.dev; the demo and the showcases
+// The docs are the root of advent-engine.4sh.dev; the demo and the showcases
 // are deployed beside them under /demo/, /northwind/ and /christmas/.
 export default defineConfig({
-  site: "https://advent-demo.4sh.dev",
+  site: "https://advent-engine.4sh.dev",
   integrations: [
     starlight({
       title: "advent",

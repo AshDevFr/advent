@@ -1,4 +1,4 @@
-# Builds everything published at advent-demo.4sh.dev and deploys it in one
+# Builds everything published at advent-engine.4sh.dev and deploys it in one
 # Cloudflare Pages upload: the documentation at the root, the public demo
 # under /demo/ and the showcases under /northwind/ and /christmas/. The
 # docs' screenshots are captured from this build, so they always match.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assemble everything published at advent-demo.4sh.dev into site/, deployed
+# Assemble everything published at advent-engine.4sh.dev into site/, deployed
 # as one Cloudflare Pages upload:
 #   /             the documentation (docs/)
 #   /demo/        the public demo, built with --base /demo/
