@@ -52,3 +52,20 @@ fn schedule_explains_invalid_dates() {
         .failure()
         .stderr(contains("has 2 dates but the event has 12 days"));
 }
+
+#[cfg(unix)]
+#[test]
+fn schedule_exits_quietly_when_output_is_cut_short() {
+    // `advent schedule | head -1` closes the pipe early; a CLI should stop
+    // quietly then rather than panic.
+    let repo = Repo::init();
+    let bin = assert_cmd::cargo::cargo_bin("advent");
+    let out = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("'{}' schedule | head -1", bin.display()))
+        .current_dir(&repo.root)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!stderr.contains("panicked"), "{stderr}");
+}

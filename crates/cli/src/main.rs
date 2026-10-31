@@ -80,6 +80,14 @@ enum KeeperCommand {
 }
 
 fn main() -> anyhow::Result<()> {
+    // Rust ignores SIGPIPE, so `advent schedule | head` would panic when
+    // head closes the pipe. Restore the default: exit quietly, like any
+    // other Unix tool.
+    #[cfg(unix)]
+    // SAFETY: called first in main, before any thread or output exists.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
     match Cli::parse().command {
         Command::Init { dir, event } => commands::init::run(&dir, event.as_deref()),
         Command::Seal { day_dir } => commands::seal::run(&day_dir),
