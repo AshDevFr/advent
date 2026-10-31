@@ -16,11 +16,11 @@ advent=${ADVENT:-$root/target/debug/advent}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-"$advent" init "$work/repo" --event demo > "$work/init.out"
+"$advent" init "$work/repo" --event sample > "$work/init.out"
 release_key=$(grep '^AGE-SECRET-KEY-1' "$work/init.out")
 cd "$work/repo"
 
-cat > events/demo/event.yaml <<'YAML'
+cat > events/sample/event.yaml <<'YAML'
 title: "Advent demo"
 timezone: UTC
 start: "2026-12-01"
@@ -35,14 +35,14 @@ YAML
 sed -i.bak 's/^name: .*/name: Advent demo/' brand/brand.yaml && rm brand/brand.yaml.bak
 
 for n in 1 2 3 4 5 6 7; do
-  day="events/demo/day0$n"
+  day="events/sample/day0$n"
   mkdir -p "$day"
   cp -R "examples/day0$n/." "$day/"
   "$advent" seal "$day" > /dev/null 2>&1
 done
-mkdir -p events/demo/final
-cp examples/final/final.yaml events/demo/final/
-"$advent" keeper seal demo > /dev/null
+mkdir -p events/sample/final
+cp examples/final/final.yaml events/sample/final/
+"$advent" keeper seal sample > /dev/null
 
 # Every day must open and the certificate must open with the seven words.
 ADVENT_RELEASE_KEY="$release_key" "$advent" verify --release
@@ -52,6 +52,6 @@ ADVENT_RELEASE_KEY="$release_key" "$advent" verify --release
 ADVENT_RELEASE_KEY="$release_key" "$advent" build --out "$out"
 
 for n in 1 2 3 4 5 6 7; do
-  test -f "$out/demo/api/day/$n.json" || { echo "day $n missing from the demo" >&2; exit 1; }
+  test -f "$out/sample/api/day/$n.json" || { echo "day $n missing from the demo" >&2; exit 1; }
 done
 echo "Demo built into $out"

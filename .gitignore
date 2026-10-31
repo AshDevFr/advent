@@ -3,6 +3,8 @@ target/
 node_modules/
 dist/
 demo-dist/
+site/
+docs/.astro/
 
 # Local-only spec repo
 .specs/

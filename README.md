@@ -5,8 +5,8 @@ code puzzle, a cipher, a logic or image puzzle, a company trivia question or a
 meta puzzle. Each solved door gives the player one word, and together the
 words unlock a completion certificate.
 
-**[Play the demo](https://advent-demo-ap6.pages.dev)**: seven sample doors,
-all open, certificate included.
+**[Play the demo](https://advent-demo.4sh.dev/demo/)**: seven sample doors,
+all open, certificate included. **[Read the docs](https://advent-demo.4sh.dev)**.
 
 ## How it works
 
@@ -52,8 +52,8 @@ walks through each step.
 
 ## Documentation
 
-The full guide and the reference for every configuration option live in
-[`docs/`](docs/) and are published with each release.
+The full guide and the reference for every configuration option are at
+**[advent-demo.4sh.dev](https://advent-demo.4sh.dev)** (sources in [`docs/`](docs/)).
 
 ## Development
 
@@ -61,6 +61,7 @@ The full guide and the reference for every configuration option live in
 make ci          # everything CI runs: frontend and Rust checks, wasm build, plaintext guard
 make demo        # build the public demo into demo-dist/
 make acceptance  # end-to-end checks of the static build
+make site        # docs and demo as published, into site/
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

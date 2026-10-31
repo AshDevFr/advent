@@ -1,0 +1,33 @@
+---
+title: advent
+description: An engine for puzzle advent calendars.
+template: splash
+hero:
+  tagline: Write puzzles, seal them, and publish one door a day. Each solve gives a word; all the words open a certificate.
+  actions:
+    - text: Get started
+      link: /start/introduction/
+      icon: right-arrow
+    - text: Play the demo
+      link: /demo/
+      variant: minimal
+      attrs:
+        target: _self
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+<CardGrid>
+  <Card title="Nothing leaks early" icon="seti:lock">
+    Puzzles are sealed before they are committed. A day only opens with the release key, which lives in CI, so nothing is published before its date.
+  </Card>
+  <Card title="One binary, a static site" icon="rocket">
+    `advent` seals, verifies and builds a static site any host can serve. No server, no database; progress stays in the player's browser.
+  </Card>
+  <Card title="Your brand, every year" icon="star">
+    Name, logo, light and dark palettes, a yearly theme, and days spread however you like.
+  </Card>
+  <Card title="Authors together" icon="puzzle">
+    An editors key lets authors reopen and edit any day; one who wants to stay surprised can seal their own days without it.
+  </Card>
+</CardGrid>

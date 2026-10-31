@@ -1,0 +1,16 @@
+/* Accent colours close to the calendar's default palettes (amber on warm
+   light, amber on dark navy), so the docs and the demos feel like one site. */
+:root {
+  --sl-color-accent-low: #3a2a12;
+  --sl-color-accent: #e3a54f;
+  --sl-color-accent-high: #f6d9ae;
+  --sl-color-black: #10131a;
+  --sl-font-system-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #f3dfc2;
+  --sl-color-accent: #a8621a;
+  --sl-color-accent-high: #5a3208;
+  --sl-color-white: #1b1d24;
+}

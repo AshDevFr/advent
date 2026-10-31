@@ -1,6 +1,7 @@
 .PHONY: help build build-release fmt fmt-check lint test check wasm plaintext ci \
 	frontend-install frontend-lint frontend-test frontend-build frontend-ci frontend-dev \
-	changelog changelog-unreleased changelog-release release-prepare dist-plan demo acceptance clean setup-hooks
+	changelog changelog-unreleased changelog-release release-prepare dist-plan demo acceptance \
+	docs docs-dev site clean setup-hooks
 
 BLUE := \033[0;34m
 GREEN := \033[0;32m
@@ -43,7 +44,7 @@ plaintext: ## Fail if plaintext puzzle content is tracked outside templates/ and
 check: fmt lint test ## Format, lint and test
 
 # The frontend is built first: the CLI embeds web/dist and its tests use it.
-ci: frontend-ci fmt-check lint test wasm plaintext ## Everything CI runs
+ci: frontend-ci fmt-check lint test wasm plaintext docs ## Everything CI runs
 
 # ── Frontend (web/) ──────────────────────────────────────────────────────────
 
@@ -113,6 +114,22 @@ demo: frontend-build ## Build the public demo (every sample day open) into demo-
 acceptance: frontend-build ## Phase acceptance: release dates, no leaks, identical rebuilds
 	cargo build -p advent-cli
 	./scripts/acceptance.sh
+
+# ── Documentation and published site ─────────────────────────────────────────
+
+docs/node_modules: docs/package.json docs/package-lock.json
+	cd docs && npm ci
+	@touch docs/node_modules
+
+docs: docs/node_modules ## Build the documentation into docs/dist
+	cd docs && npm run build
+
+docs-dev: docs/node_modules ## Start the documentation dev server
+	cd docs && npm run dev
+
+site: frontend-build docs/node_modules ## Assemble docs and demo into site/ (what CI deploys)
+	cargo build -p advent-cli
+	./scripts/build-site.sh
 
 # ── Misc ─────────────────────────────────────────────────────────────────────
 
