@@ -265,7 +265,15 @@ fn build_event(
         dates: (1..=event.days)
             .map(|n| event.day_date(n).to_string())
             .collect(),
-        opens_at: first_release(&event).map(|t| t.to_rfc3339_opts(SecondsFormat::Secs, true)),
+        // Once a day is out there is nothing to count down to. Saying so here
+        // rather than leaving it to the visitor's clock keeps a preview built
+        // as of a later date (or with every day open) from showing a
+        // countdown in November.
+        opens_at: if released.is_empty() {
+            first_release(&event).map(|t| t.to_rfc3339_opts(SecondsFormat::Secs, true))
+        } else {
+            None
+        },
         released,
         types,
         notices: event

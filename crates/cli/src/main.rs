@@ -67,7 +67,7 @@ enum Command {
         base: String,
     },
     /// Preview the calendar on this machine with the editors key, including
-    /// days not released yet; served on 127.0.0.1 only.
+    /// days not released yet; served on 127.0.0.1 unless --host says otherwise.
     Preview {
         /// Show the calendar as of the end of this date (YYYY-MM-DD).
         #[arg(long)]
@@ -78,9 +78,14 @@ enum Command {
         /// Pre-fill every word, so the certificate can be unlocked right away.
         #[arg(long)]
         solved: bool,
-        /// Port on 127.0.0.1.
+        /// Port to serve on.
         #[arg(long, default_value_t = 4321)]
         port: u16,
+        /// Address to serve on. Use 0.0.0.0 inside a container, with the port
+        /// published on the host's 127.0.0.1: anyone who can reach it sees
+        /// days not released yet.
+        #[arg(long, default_value = "127.0.0.1")]
+        host: std::net::IpAddr,
         /// Write the preview to this folder and exit instead of serving it.
         #[arg(long)]
         out: Option<PathBuf>,
@@ -149,12 +154,14 @@ fn main() -> anyhow::Result<()> {
             all_open,
             solved,
             port,
+            host,
             out,
         } => commands::preview::run(commands::preview::Args {
             until,
             all_open,
             solved,
             port,
+            host,
             out,
         }),
         Command::Serve {

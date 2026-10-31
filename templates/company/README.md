@@ -27,14 +27,12 @@ repository's sealed files.
    }
    ```
 
-   Every command below works through it except the server `advent preview`
-   starts, which only listens inside the container. Write the preview to a
-   folder and serve that instead:
+   Every command below works through it. For `advent preview`, publish the
+   port on this machine only and let the preview listen inside the container:
 
    ```sh
-   advent preview --all-open --out .preview
-   docker run --rm -p 127.0.0.1:4321:80 -v "$PWD/.preview:/usr/share/nginx/html:ro" nginx:alpine
-   rm -rf .preview   # it holds days that are not released yet
+   docker run --rm -i --init -u "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
+     -p 127.0.0.1:4321:4321 ghcr.io/ashdevfr/advent:{{engine}} preview --host 0.0.0.0 --all-open
    ```
 
    The image has no git, so `advent verify` skips its check for committed

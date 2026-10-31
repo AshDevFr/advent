@@ -2,13 +2,15 @@
 //! for authors and the keeper. Days are opened with the editors key (each
 //! source copy holds its day's keys), so no release key is needed. The site
 //! is written to a temporary folder outside the repository and served on
-//! 127.0.0.1 only: a preview can show days that are not released yet, so it
-//! must never be deployable or reachable from the network.
+//! 127.0.0.1 by default: a preview can show days that are not released yet,
+//! so it must never be deployable, and is reachable from elsewhere only when
+//! asked with `--host` (inside a container, where 127.0.0.1 is the
+//! container's own and unreachable from the host).
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{IpAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 
 use advent_core::model::DayMeta;
@@ -26,6 +28,7 @@ pub struct Args {
     pub all_open: bool,
     pub solved: bool,
     pub port: u16,
+    pub host: IpAddr,
     pub out: Option<PathBuf>,
 }
 
@@ -72,12 +75,16 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         std::process::exit(0);
     })?;
 
-    let listener = TcpListener::bind(("127.0.0.1", args.port))
+    let listener = TcpListener::bind((args.host, args.port))
         .with_context(|| format!("port {} is busy; pick another with --port", args.port))?;
-    println!(
-        "Preview at http://127.0.0.1:{}/ (this machine only). Ctrl-C to stop.",
-        listener.local_addr()?.port()
-    );
+    let addr = listener.local_addr()?;
+    if args.host.is_loopback() {
+        println!("Preview at http://{addr}/ (this machine only). Ctrl-C to stop.");
+    } else {
+        println!(
+            "Preview at http://{addr}/, reachable from other machines and showing days not released yet. Ctrl-C to stop."
+        );
+    }
     for stream in listener.incoming().flatten() {
         let _ = handle(stream, &site);
     }

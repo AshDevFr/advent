@@ -308,3 +308,16 @@ fn build_refuses_to_replace_a_folder_it_did_not_write() {
         .stderr(contains("not written by `advent build`"));
     assert!(repo.day_dir(1).join("sealed.json").is_file());
 }
+
+#[test]
+fn build_counts_down_only_until_the_first_day_is_out() {
+    let repo = sample_event();
+    let before = build(&repo, "2026-11-30", "before");
+    let event: serde_json::Value =
+        serde_json::from_slice(&fs::read(before.join("2026/event.json")).unwrap()).unwrap();
+    assert!(event["opens_at"].as_str().unwrap().starts_with("2026-1"));
+    let after = build(&repo, "2026-12-01", "after");
+    let event: serde_json::Value =
+        serde_json::from_slice(&fs::read(after.join("2026/event.json")).unwrap()).unwrap();
+    assert!(event["opens_at"].is_null());
+}

@@ -42,6 +42,7 @@ Build the calendar with the editors key (no release key needed) into a temporary
 - `--all-open`: open every day and every hint regardless of the date.
 - `--solved`: pre-fill every word, so the certificate can be unlocked right away with any name.
 - `--port <N>`: the port (default 4321).
+- `--host <IP>`: the address to serve on (default `127.0.0.1`). Inside a container, use `0.0.0.0` and publish the port on the host's loopback only (`-p 127.0.0.1:4321:4321`): anyone who can reach the address sees days that are not released yet.
 - `--out <DIR>`: write the preview there and exit instead of serving it. It can contain unreleased days: keep it out of git.
 
 ### `advent schedule [EVENT]`

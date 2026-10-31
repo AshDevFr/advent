@@ -78,3 +78,55 @@ fn preview_skips_days_still_being_written() {
     assert!(!repo.root.join("pv/2026/api/day/2.json").exists());
     assert!(repo.root.join("pv/2026/api/day/3.json").exists());
 }
+
+#[test]
+fn preview_serves_on_another_host_with_a_warning() {
+    use std::io::{BufRead, BufReader, Read, Write};
+    use std::net::TcpStream;
+    use std::process::{Command, Stdio};
+
+    let repo = sample_event();
+    let mut child = Command::new(assert_cmd::cargo::cargo_bin("advent"))
+        .args(["preview", "--host", "0.0.0.0", "--port", "0"])
+        .current_dir(&repo.root)
+        .env_remove("ADVENT_RELEASE_KEY")
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut line = String::new();
+    BufReader::new(child.stdout.take().unwrap())
+        .read_line(&mut line)
+        .unwrap();
+    let port = line
+        .split("0.0.0.0:")
+        .nth(1)
+        .and_then(|rest| rest.split('/').next())
+        .unwrap_or_else(|| panic!("no address in {line:?}"))
+        .to_string();
+    assert!(line.contains("not released yet"), "{line}");
+
+    let mut stream = TcpStream::connect(format!("127.0.0.1:{port}")).unwrap();
+    stream
+        .write_all(b"GET /2026/event.json HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
+        .unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    child.kill().unwrap();
+    child.wait().unwrap();
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+}
+
+#[test]
+fn preview_with_days_out_has_no_countdown_whatever_the_clock_says() {
+    let repo = sample_event();
+    repo.advent()
+        .args(["preview", "--out", "pv", "--all-open"])
+        .assert()
+        .success();
+    let site: serde_json::Value =
+        serde_json::from_slice(&fs::read(repo.root.join("pv/site.json")).unwrap()).unwrap();
+    assert!(site["events"][0]["opens_at"].is_null(), "{site}");
+    let event: serde_json::Value =
+        serde_json::from_slice(&fs::read(repo.root.join("pv/2026/event.json")).unwrap()).unwrap();
+    assert!(event["opens_at"].is_null());
+}
