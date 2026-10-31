@@ -371,6 +371,19 @@ pub struct FinalPayload {
     pub signature: Option<String>,
     /// Optional image file shown behind the whole certificate.
     pub background: Option<String>,
+    /// What else finishing gives: files to download and links, revealed
+    /// only once the certificate is unlocked.
+    #[serde(default)]
+    pub rewards: Vec<RewardSpec>,
+}
+
+/// One reward in `final.yaml`: a file next to it, or a link.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RewardSpec {
+    pub label: String,
+    pub file: Option<String>,
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -386,6 +399,17 @@ impl FinalPayload {
         let payload: Self = yaml(text)?;
         if payload.title.trim().is_empty() {
             return Err(invalid("title", "must not be empty"));
+        }
+        for reward in &payload.rewards {
+            if reward.label.trim().is_empty() {
+                return Err(invalid("rewards", "a reward has no label"));
+            }
+            if reward.file.is_some() == reward.url.is_some() {
+                return Err(invalid(
+                    "rewards",
+                    format!("{:?} needs exactly one of `file` or `url`", reward.label),
+                ));
+            }
         }
         Ok(payload)
     }

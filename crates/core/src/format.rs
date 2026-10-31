@@ -114,6 +114,36 @@ pub struct Certificate {
     /// WebP background image, when the keeper provided one.
     #[serde(default, with = "b64_opt", skip_serializing_if = "Option::is_none")]
     pub background: Option<Vec<u8>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rewards: Vec<Reward>,
+}
+
+/// A reward revealed with the certificate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Reward {
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file: Option<RewardFile>,
+}
+
+/// A reward file, encrypted on its own so it is only downloaded when the
+/// player asks for it; its key travels inside the sealed certificate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RewardFile {
+    /// The name the file is saved under.
+    pub name: String,
+    pub size: u64,
+    /// `reward-<index>.bin` next to the sealed certificate, published as
+    /// `<event>/api/rewards/<index>.bin`.
+    pub index: u32,
+    #[serde(with = "b64_array")]
+    pub key: crate::primitives::Key,
+    #[serde(with = "b64_array")]
+    pub iv: Iv,
 }
 
 impl Serialize for WordLock {

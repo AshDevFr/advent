@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useProgress } from "@/store";
 import { event, serve, site } from "@/test/fixtures";
@@ -134,6 +134,60 @@ describe("certificate options", () => {
       images.filter((i) => i.href.startsWith("data:image/webp")),
     ).toHaveLength(2);
     expect(images.some((i) => i.y === 60)).toBe(true);
+  });
+});
+
+describe("rewards", () => {
+  it("lists links and decrypts a file on demand", async () => {
+    const bytes = new TextEncoder().encode("wallpaper bytes");
+    const rawKey = crypto.getRandomValues(new Uint8Array(32));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, [
+      "encrypt",
+    ]);
+    const sealed = new Uint8Array(
+      await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, bytes),
+    );
+    const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
+    serve({ "/2026/api/rewards/1.bin": sealed });
+    const saved: { blob: Blob; name: string }[] = [];
+    vi.spyOn(await import("./exportPng"), "download").mockImplementation(
+      (blob, name) => {
+        saved.push({ blob, name });
+      },
+    );
+
+    const { Rewards } = await import("./Rewards");
+    const user = userEvent.setup();
+    render(
+      <Rewards
+        event="2026"
+        rewards={[
+          { label: "Bonus puzzle", url: "https://example.com/bonus" },
+          {
+            label: "Wallpaper",
+            file: {
+              name: "wall.png",
+              size: bytes.length,
+              index: 1,
+              key: b64(rawKey),
+              iv: b64(iv),
+            },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Open link" })).toHaveAttribute(
+      "href",
+      "https://example.com/bonus",
+    );
+    await user.click(screen.getByRole("button", { name: /Download wall.png/ }));
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0].name).toBe("wall.png");
+    // Compare as plain arrays: jsdom's and Node's Uint8Array never compare equal.
+    expect(
+      Array.from(new Uint8Array(await saved[0].blob.arrayBuffer())),
+    ).toEqual(Array.from(bytes));
   });
 });
 

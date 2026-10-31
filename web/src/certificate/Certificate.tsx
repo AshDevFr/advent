@@ -9,6 +9,7 @@ import {
 } from "@/crypto";
 import { useEventProgress, useProgress } from "@/store";
 import { download, svgToPng } from "./exportPng";
+import { Rewards } from "./Rewards";
 
 /**
  * Always shown, so players know what the words are for; unlocking needs
@@ -95,12 +96,15 @@ export function CertificatePanel({
         </p>
       )}
       {payload && (
-        <CertificateView
-          event={event}
-          brandName={brandName}
-          payload={payload}
-          name={name.trim()}
-        />
+        <>
+          <CertificateView
+            event={event}
+            brandName={brandName}
+            payload={payload}
+            name={name.trim()}
+          />
+          <Rewards event={event.id} rewards={payload.rewards ?? []} />
+        </>
       )}
     </section>
   );

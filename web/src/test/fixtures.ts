@@ -36,9 +36,12 @@ export function serve(files: Record<string, unknown>) {
     "fetch",
     vi.fn(async (path: string) => {
       const key = path.replace(/^\//, "");
-      return byPath.has(key)
-        ? new Response(JSON.stringify(byPath.get(key)), { status: 200 })
-        : new Response("not found", { status: 404 });
+      if (!byPath.has(key)) return new Response("not found", { status: 404 });
+      const body = byPath.get(key);
+      // Binary files (sealed rewards) are served as they are.
+      return body instanceof Uint8Array
+        ? new Response(body.slice().buffer, { status: 200 })
+        : new Response(JSON.stringify(body), { status: 200 });
     }),
   );
 }

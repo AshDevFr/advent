@@ -169,7 +169,11 @@ fn check_event(
             Ok(sealed) => {
                 if let (Some(_), Some(words)) = (editors, words) {
                     let words: Vec<&str> = words.iter().map(String::as_str).collect();
-                    if primitives::open_final(&words, sealed.salt, sealed.iv, &sealed.ct).is_err() {
+                    let opened = primitives::open_final(&words, sealed.salt, sealed.iv, &sealed.ct);
+                    if let Ok(plain) = &opened {
+                        check_rewards(event_dir, plain, report);
+                    }
+                    if opened.is_err() {
                         report(
                             "the certificate is stale: it does not open with the current words \
                              (run `advent keeper seal` again)"
@@ -181,6 +185,34 @@ fn check_event(
         },
     }
     Ok(())
+}
+
+/// Every reward file the certificate lists is present and opens with its key.
+fn check_rewards(event_dir: &Path, certificate_json: &[u8], report: &mut dyn FnMut(String)) {
+    let Ok(certificate) = serde_json::from_slice::<format::Certificate>(certificate_json) else {
+        report("the certificate payload is not readable".into());
+        return;
+    };
+    for file in certificate.rewards.iter().filter_map(|r| r.file.as_ref()) {
+        let path = event_dir
+            .join(keeper::FINAL_DIR)
+            .join(keeper::reward_file_name(file.index));
+        match fs::read(&path) {
+            Err(_) => report(format!(
+                "reward file {} ({}) is missing",
+                path.display(),
+                file.name
+            )),
+            Ok(ct) => {
+                if primitives::open_bundle(&file.key, file.iv, &ct).is_err() {
+                    report(format!(
+                        "reward file {} does not open with its key",
+                        file.name
+                    ));
+                }
+            }
+        }
+    }
 }
 
 /// Numbers of every `dayNN` folder present, sealed or not.
@@ -270,7 +302,9 @@ fn tracked_plaintext(root: &Path, problems: &mut Vec<String>) {
         let in_sealed_folder = parts.len() >= 4
             && parts[0] == "events"
             && (parts[2].starts_with("day") || parts[2] == keeper::FINAL_DIR);
-        let allowed = matches!(parts.last(), Some(&SEALED_FILE) | Some(&SOURCE_FILE));
+        let allowed = parts
+            .last()
+            .is_some_and(|name| keeper::is_sealed_output(name));
         if in_sealed_folder && !allowed {
             problems.push(format!(
                 "plaintext is tracked by git: {path} (remove it with `git rm --cached {path}`)"

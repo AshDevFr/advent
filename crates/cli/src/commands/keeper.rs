@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use advent_core::format::{self, Certificate, SCHEMA, SealedFinal};
+use advent_core::format::{self, Certificate, Reward, RewardFile, SCHEMA, SealedFinal};
 use advent_core::model::{Event, FinalPayload};
 use advent_core::primitives;
 use advent_core::wrap::{self, x25519};
@@ -18,6 +18,22 @@ use crate::day::{self, Plaintext, SEALED_FILE, SOURCE_FILE};
 use crate::{images, random};
 
 pub const FINAL_DIR: &str = "final";
+
+/// Cloudflare Pages refuses files above 25 MiB, so a larger reward could
+/// never be deployed.
+pub const MAX_REWARD_BYTES: usize = 25 * 1024 * 1024;
+
+/// `reward-<n>.bin`: a sealed reward file next to the sealed certificate.
+pub fn reward_file_name(index: u32) -> String {
+    format!("reward-{index}.bin")
+}
+
+/// Files `keeper seal` writes, as opposed to the keeper's plaintext.
+pub fn is_sealed_output(name: &str) -> bool {
+    name == SEALED_FILE
+        || name == SOURCE_FILE
+        || (name.starts_with("reward-") && name.ends_with(".bin"))
+}
 const FINAL_FILE: &str = "final.yaml";
 
 pub fn run(event_id: &str) -> anyhow::Result<()> {
@@ -39,7 +55,7 @@ pub fn run(event_id: &str) -> anyhow::Result<()> {
             .unwrap_or_default()
             .to_string_lossy()
             .into_owned();
-        if path.is_file() && name != SEALED_FILE && name != SOURCE_FILE {
+        if path.is_file() && !is_sealed_output(&name) {
             files.insert(name, fs::read(&path)?);
         }
     }
@@ -111,7 +127,48 @@ pub fn seal_final(
             images::to_webp(data).with_context(|| format!("converting {name}"))?,
         ))
     };
+    // Each reward file gets its own key, so it is only downloaded when the
+    // player asks for it; links ride inside the certificate itself.
+    let mut rewards = Vec::new();
+    let mut sealed_rewards: Vec<(String, Vec<u8>)> = Vec::new();
+    for spec in &payload.rewards {
+        let file = match &spec.file {
+            None => None,
+            Some(name) => {
+                let data = files.get(name).with_context(|| {
+                    format!("reward file {name:?} not found next to {FINAL_FILE}")
+                })?;
+                if data.len() > MAX_REWARD_BYTES {
+                    bail!(
+                        "reward file {name:?} is {:.1} MB; the limit is 25 MB per file (Cloudflare Pages cannot serve larger files)",
+                        data.len() as f64 / (1024.0 * 1024.0)
+                    );
+                }
+                let index = sealed_rewards.len() as u32 + 1;
+                let key = random::bytes();
+                let iv = random::bytes();
+                sealed_rewards.push((
+                    reward_file_name(index),
+                    primitives::seal_bundle(&key, iv, data),
+                ));
+                Some(RewardFile {
+                    name: name.clone(),
+                    size: data.len() as u64,
+                    index,
+                    key,
+                    iv,
+                })
+            }
+        };
+        rewards.push(Reward {
+            label: spec.label.clone(),
+            url: spec.url.clone(),
+            file,
+        });
+    }
+
     let certificate = Certificate {
+        rewards,
         image: webp(&payload.image)?,
         background: webp(&payload.background)?,
         title: payload.title,
@@ -143,6 +200,17 @@ pub fn seal_final(
 
     let source = wrap::encrypt_to(&day::pack_source(files, None)?, editors)?;
     fs::create_dir_all(final_dir)?;
+    // Old reward files from an earlier seal would no longer match any key.
+    for entry in fs::read_dir(final_dir)? {
+        let path = entry?.path();
+        let name = path.file_name().unwrap_or_default().to_string_lossy();
+        if name.starts_with("reward-") && name.ends_with(".bin") {
+            fs::remove_file(&path)?;
+        }
+    }
+    for (name, data) in &sealed_rewards {
+        day::write_atomic(&final_dir.join(name), data)?;
+    }
     day::write_atomic(&final_dir.join(SEALED_FILE), &sealed_json)?;
     day::write_atomic(&final_dir.join(SOURCE_FILE), &source)
 }

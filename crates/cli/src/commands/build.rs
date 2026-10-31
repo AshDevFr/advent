@@ -208,6 +208,25 @@ fn build_event(
     if final_sealed.is_file() {
         let sealed = format::read_sealed_final(&fs::read(&final_sealed)?)?;
         write_json(&site.join("api/final.json"), &sealed)?;
+        // Reward files are encrypted with keys inside the sealed
+        // certificate, so they are safe to publish from the start.
+        for entry in fs::read_dir(event_dir.join(keeper::FINAL_DIR))? {
+            let path = entry?.path();
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
+            if let Some(index) = name
+                .strip_prefix("reward-")
+                .and_then(|n| n.strip_suffix(".bin"))
+            {
+                copy_asset(
+                    &path,
+                    &site.join("api/rewards").join(format!("{index}.bin")),
+                )?;
+            }
+        }
     }
 
     let info = EventInfo {

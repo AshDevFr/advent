@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use advent_core::model::{
     Brand, DayMeta, Event, FinalPayload, Hint, ImagePosition, Keys, Notice, Palettes, RepoConfig,
-    Story, Theme,
+    RewardSpec, Story, Theme,
 };
 use serde::Serialize;
 
@@ -145,6 +145,11 @@ fn reference_documents_final_yaml() {
         subtitle: Some("s".into()),
         signature: Some("g".into()),
         background: Some("b.png".into()),
+        rewards: vec![RewardSpec {
+            label: "l".into(),
+            file: Some("f.zip".into()),
+            url: Some("https://x.test".into()),
+        }],
     };
     assert_documented("final-yaml.md", fields(&payload));
 }

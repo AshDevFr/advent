@@ -66,6 +66,11 @@ export function assetUrl(id: string, day: number, name: string): string {
   return `${id}/api/day/${day}/${name}`;
 }
 
+/** A sealed reward file, decrypted in the browser with its key. */
+export function rewardUrl(id: string, index: number): string {
+  return `${id}/api/rewards/${index}.bin`;
+}
+
 export function themeCssUrl(id?: string): string {
   return id ? `${id}/theme.css` : "theme.css";
 }

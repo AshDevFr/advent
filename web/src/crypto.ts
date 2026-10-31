@@ -32,6 +32,46 @@ export interface Certificate {
   subtitle?: string;
   signature?: string;
   background?: string;
+  rewards?: Reward[];
+}
+
+/** A reward revealed with the certificate: a link, or a file to download. */
+export interface Reward {
+  label: string;
+  url?: string;
+  file?: {
+    name: string;
+    size: number;
+    /** Published at `<event>/api/rewards/<index>.bin`. */
+    index: number;
+    /** Base64 AES-256-GCM key and IV for that file. */
+    key: string;
+    iv: string;
+  };
+}
+
+/** Decrypt a reward file with the key from the certificate. */
+export async function openReward(
+  file: NonNullable<Reward["file"]>,
+  ciphertext: ArrayBuffer,
+): Promise<Uint8Array<ArrayBuffer> | null> {
+  const key = await subtle().importKey(
+    "raw",
+    fromBase64(file.key),
+    "AES-GCM",
+    false,
+    ["decrypt"],
+  );
+  try {
+    const plain = await subtle().decrypt(
+      { name: "AES-GCM", iv: fromBase64(file.iv) },
+      key,
+      ciphertext,
+    );
+    return new Uint8Array(plain);
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -28,6 +28,20 @@ advent keeper seal 2026
 
 The words are read from the days' source copies (it needs the editors key), so nobody retypes them. Sealing refuses while any day is missing. If a day is re-sealed later with a different word, `advent verify` reports the certificate as stale: seal it again.
 
+## Rewards
+
+Finishing can unlock more than the certificate: files to download and links, listed under the certificate once it is unlocked.
+
+```yaml
+rewards:
+  - label: Wallpaper pack
+    file: wallpapers.zip
+  - label: Bonus puzzle
+    url: https://example.com/secret-bonus
+```
+
+Files are encrypted one by one and only downloaded when the player asks for them. Everyone who finishes gets the same rewards, so a code that must be unique per person (a gift card, for instance) does not fit here. See the [final.yaml reference](/reference/final-yaml/#rewards).
+
 ## Preview it
 
 ```sh

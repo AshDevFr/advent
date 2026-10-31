@@ -8,6 +8,7 @@ events/*/day*/*
 events/*/final/*
 !events/*/final/sealed.json
 !events/*/final/source.age
+!events/*/final/reward-*.bin
 
 # Private keys
 editors.key
