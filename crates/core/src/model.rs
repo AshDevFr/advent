@@ -435,9 +435,10 @@ impl Brand {
 pub struct Theme {
     #[serde(default)]
     pub palette: Palettes,
+    /// Image shown behind the calendar, next to `theme.yaml`.
     pub background: Option<String>,
+    /// Artwork shown on locked doors, next to `theme.yaml`.
     pub doors: Option<String>,
-    pub intro: Option<String>,
 }
 
 impl Theme {
@@ -514,6 +515,10 @@ mod tests {
 
     #[test]
     fn model_theme_cannot_set_name_or_logo() {
+        assert!(
+            Theme::from_yaml("intro: x\n").is_err(),
+            "the intro lives in event.yaml"
+        );
         assert!(Theme::from_yaml("name: X\n").is_err());
         assert!(Theme::from_yaml("logo: other.svg\n").is_err());
     }

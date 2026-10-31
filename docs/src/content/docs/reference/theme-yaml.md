@@ -37,16 +37,10 @@ This edition's dark colours; missing keys keep the brand's dark ones (then the e
 
 **Type** file name · **Optional**
 
-An image next to `theme.yaml`, published at `<event>/theme/<file>`. Reserved for decoration: the current calendar does not display it yet.
+An image next to `theme.yaml`, shown behind the whole calendar under a wash of the page colour so text stays readable in light and dark mode. A soft texture or illustration works best; SVG, PNG or WebP.
 
 ### `doors`
 
 **Type** file name · **Optional**
 
-Door artwork next to `theme.yaml`, published like `background`. Reserved: not displayed yet.
-
-### `intro`
-
-**Type** string · **Optional**
-
-Reserved: not used yet. The calendar's intro text comes from `story.intro` in [event.yaml](/reference/event-yaml/).
+Artwork next to `theme.yaml`, shown on locked doors, like wrapping paper. Open and solved doors stay plain. A small repeating pattern works best.

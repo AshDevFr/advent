@@ -197,3 +197,44 @@ describe("base path", () => {
     expect(requested.every((url) => !url.startsWith("/"))).toBe(true);
   });
 });
+
+describe("branding on the calendar", () => {
+  it("shows the logo, the background and door artwork, and names the tab", async () => {
+    serve({
+      "/2026/event.json": event({
+        headline: "Light the way",
+        background: "2026/theme/background.svg",
+        doors: "2026/theme/doors.svg",
+      }),
+      "/site.json": site([event()]),
+    });
+    render(<App path="/2026/" />);
+
+    const grid = await screen.findByRole("list", { name: "Calendar doors" });
+    await waitFor(() =>
+      expect(document.title).toBe("Light the way · Acme Advent"),
+    );
+    expect(document.querySelector('link[rel="icon"]')).toHaveAttribute(
+      "href",
+      "/brand/logo.svg",
+    );
+    expect(
+      document.querySelector('header img[src="/brand/logo.svg"]'),
+    ).not.toBeNull();
+    expect(screen.getByTestId("backdrop").style.backgroundImage).toContain(
+      "2026/theme/background.svg",
+    );
+
+    const locked = within(grid).getByRole("img", { name: /Day 4, locked/ });
+    expect(locked.style.backgroundImage).toContain("2026/theme/doors.svg");
+    const open = within(grid).getByRole("button", { name: "Day 2, open" });
+    expect(open.style.backgroundImage).toBe("");
+  });
+
+  it("stays plain without theme decoration", async () => {
+    serve({ "/2026/event.json": event() });
+    render(<App path="/2026/" />);
+    await screen.findByRole("list", { name: "Calendar doors" });
+    expect(screen.queryByTestId("backdrop")).toBeNull();
+  });
+});

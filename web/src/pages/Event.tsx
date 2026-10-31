@@ -7,6 +7,7 @@ import {
   type SiteIndex,
   themeCssUrl,
 } from "@/api";
+import { BrowserTab } from "@/BrowserTab";
 import { CertificatePanel } from "@/certificate/Certificate";
 import { Countdown } from "@/components/Countdown";
 import { type Door, DoorGrid } from "@/components/DoorGrid";
@@ -27,6 +28,23 @@ export function shortDate(isoDate: string): string {
     day: "numeric",
     timeZone: "UTC",
   });
+}
+
+/**
+ * The theme's background image, fixed behind the page under a wash of the
+ * page colour so text stays readable in light and dark mode.
+ */
+function Backdrop({ image }: { image: string }) {
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
+      <div
+        data-testid="backdrop"
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url("${image}")` }}
+      />
+      <div className="absolute inset-0 bg-background/78" />
+    </div>
+  );
 }
 
 /** `/<event>/`: the calendar itself. */
@@ -87,18 +105,26 @@ export function EventPage({ id }: { id: string }) {
     };
   });
   const opensAt = event.opens_at ? new Date(event.opens_at) : null;
+  const tabTitle = [event.headline ?? event.title, brand?.name]
+    .filter(Boolean)
+    .join(" · ");
   const eyebrow = [brand?.name, event.headline ? event.title : null]
     .filter(Boolean)
     .join(" · ");
 
   return (
     <main className="mx-auto flex min-h-svh max-w-6xl flex-col gap-8 px-4 py-6 sm:px-8 sm:py-10">
+      <BrowserTab title={tabTitle} icon={brand?.logo} />
+      {event.background && <Backdrop image={event.background} />}
       <header className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <a
             href="./"
-            className="text-xs font-semibold tracking-widest text-muted-foreground uppercase hover:text-foreground"
+            className="flex items-center gap-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase hover:text-foreground"
           >
+            {brand?.logo && (
+              <img src={brand.logo} alt="" className="size-8 shrink-0" />
+            )}
             {eyebrow || "All calendars"}
           </a>
           <ThemeToggle />
@@ -115,7 +141,7 @@ export function EventPage({ id }: { id: string }) {
         <Countdown target={opensAt} />
       )}
       <KeyStrip days={event.days} words={progress.words} />
-      <DoorGrid doors={doors} onOpen={setOpenDay} />
+      <DoorGrid doors={doors} onOpen={setOpenDay} artwork={event.doors} />
       <CertificatePanel event={event} brandName={brand?.name ?? ""} />
       <Progress event={id} />
       {openDay !== null && (

@@ -4,8 +4,9 @@ start: 2026-12-01
 days: 8
 # Office days only: doors open Monday to Friday.
 weekdays: true
-# The showcase opens every door; a real hunt would leave this out.
-unlocked: 8
+# The showcase opens five doors so the others show their wrapping; a real hunt
+# would leave this out.
+unlocked: 5
 notices:
   - text: "Puzzles about Northwind only use facts given in the puzzle. No need to search the intranet."
 story:

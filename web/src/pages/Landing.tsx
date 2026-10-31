@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { api, type SiteIndex, themeCssUrl } from "@/api";
+import { BrowserTab } from "@/BrowserTab";
 import { Countdown } from "@/components/Countdown";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { buttonVariants } from "@/components/ui/button";
@@ -25,6 +26,7 @@ export function Landing() {
   const events = [...site.events].reverse();
   return (
     <main className="mx-auto flex min-h-svh max-w-3xl flex-col gap-10 px-4 py-6 sm:px-8 sm:py-10">
+      <BrowserTab title={site.brand.name} icon={site.brand.logo} />
       <header className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           {site.brand.logo && (

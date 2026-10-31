@@ -18,10 +18,21 @@ const label =
 export function DoorGrid({
   doors,
   onOpen,
+  artwork,
 }: {
   doors: Door[];
   onOpen: (day: number) => void;
+  /** The theme's door artwork, shown on locked doors like wrapping paper. */
+  artwork?: string | null;
 }) {
+  // A wash of the door colour keeps the number and date readable on top.
+  const wrapped = artwork
+    ? {
+        backgroundImage: `linear-gradient(color-mix(in srgb, var(--surface-raised) 55%, transparent), color-mix(in srgb, var(--surface-raised) 55%, transparent)), url("${artwork}")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : undefined;
   return (
     <ul
       aria-label="Calendar doors"
@@ -33,6 +44,8 @@ export function DoorGrid({
             <div
               role="img"
               aria-label={`Day ${door.day}, locked${door.opens ? `, opens ${door.opens}` : ""}`}
+              data-artwork={artwork ? "" : undefined}
+              style={wrapped}
               className="flex aspect-square flex-col justify-between rounded-lg border bg-card/60 p-2.5 sm:aspect-[5/6] sm:p-3"
             >
               <span className="font-display text-3xl font-semibold text-muted-foreground sm:text-4xl">

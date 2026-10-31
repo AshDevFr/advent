@@ -38,7 +38,14 @@ palette:
 | `text-muted` | secondary text, locked doors |
 | `accent` | highlights |
 | `border` | borders and dividers |
+| `radius` | corner roundness of doors, cards and buttons (a CSS length such as `0.25rem`; default `0.75rem`) |
 
 Values are CSS colours (`#1f5f8b`, `rgb(…)`, `oklch(…)`). Characters that could break out of a CSS rule (`;`, `{`, `}`, `<`, `>`, `\`) are refused at build time.
+
+## Logo and decoration
+
+The brand's `logo` appears in the browser tab, on the landing page, next to the calendar's title and on the certificate.
+
+An event's `theme.yaml` can add a `background` image, shown behind the calendar under a wash of the page colour, and `doors` artwork, shown on locked doors like wrapping paper until they open. SVG, PNG and WebP all work; a soft image reads better than a busy one.
 
 See the [brand.yaml](/reference/brand-yaml/) and [theme.yaml](/reference/theme-yaml/) references.

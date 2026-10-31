@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 288">
+  <defs>
+    <pattern id="stripes" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+      <rect width="24" height="24" fill="#1f5f8b"/>
+      <rect width="10" height="24" fill="#2a76a8"/>
+    </pattern>
+    <g id="lantern">
+      <rect x="-6" y="-16" width="12" height="4" rx="1" fill="#e6eef5"/>
+      <path d="M-10 -11 H10 L8 13 H-8 Z" fill="#f6c453" stroke="#e6eef5" stroke-width="2" stroke-linejoin="round"/>
+      <circle r="4" fill="#ffffff"/>
+    </g>
+  </defs>
+  <rect width="240" height="288" fill="url(#stripes)"/>
+  <use href="#lantern" x="60" y="70"/>
+  <use href="#lantern" x="180" y="70"/>
+  <use href="#lantern" x="120" y="150"/>
+  <use href="#lantern" x="60" y="230"/>
+  <use href="#lantern" x="180" y="230"/>
+  <rect x="112" width="16" height="288" fill="#c9302c" opacity="0.85"/>
+  <rect y="136" width="240" height="16" fill="#c9302c" opacity="0.85"/>
+</svg>

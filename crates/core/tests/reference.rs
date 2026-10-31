@@ -91,7 +91,6 @@ fn reference_documents_theme_yaml() {
         palette: palettes(),
         background: Some("bg.webp".into()),
         doors: Some("doors.webp".into()),
-        intro: Some("i".into()),
     };
     assert_documented("theme-yaml.md", fields(&theme));
 }
