@@ -6,6 +6,7 @@ demo-dist/
 showcases-dist/
 site/
 docs/.astro/
+docs/public/screenshots/
 
 # Local-only spec repo
 .specs/

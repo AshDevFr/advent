@@ -1,6 +1,7 @@
 # Builds everything published at advent-demo.4sh.dev and deploys it in one
-# Cloudflare Pages upload: the documentation at the root and the public demo
-# under /demo/ (the showcases join it under their own paths).
+# Cloudflare Pages upload: the documentation at the root, the public demo
+# under /demo/ and the showcases under /northwind/ and /christmas/. The
+# docs' screenshots are captured from this build, so they always match.
 #
 # Needs the secrets CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit) and
 # CLOUDFLARE_ACCOUNT_ID. The Pages project is created on first deploy.
@@ -40,8 +41,13 @@ jobs:
             web/package-lock.json
             docs/package-lock.json
 
-      - name: Build the docs and the demo
-        run: make site
+      - name: Install the docs dependencies and Chromium for the screenshots
+        run: |
+          make docs/node_modules
+          cd docs && npx playwright install --with-deps chromium
+
+      - name: Build the docs, the demo, the showcases and the screenshots
+        run: make screenshots
 
       - name: Create the Pages project if missing
         run: |

@@ -1,7 +1,7 @@
 .PHONY: help build build-release fmt fmt-check lint test check wasm plaintext ci \
 	frontend-install frontend-lint frontend-test frontend-build frontend-ci frontend-dev \
 	changelog changelog-unreleased changelog-release release-prepare dist-plan demo acceptance \
-	docs docs-dev site showcases clean setup-hooks
+	docs docs-dev site showcases screenshots clean setup-hooks
 
 BLUE := \033[0;34m
 GREEN := \033[0;32m
@@ -131,6 +131,10 @@ showcases: frontend-build ## Build both showcases into showcases-dist/
 	cargo build -p advent-cli
 	./scripts/build-showcase.sh northwind showcases-dist/northwind
 	./scripts/build-showcase.sh christmas showcases-dist/christmas
+
+screenshots: frontend-build docs/node_modules ## Assemble site/ and capture the docs' screenshots (Playwright Chromium)
+	cargo build -p advent-cli
+	ADVENT_SCREENSHOTS=1 ./scripts/build-site.sh
 
 site: frontend-build docs/node_modules ## Assemble docs, demo and showcases into site/ (what CI deploys)
 	cargo build -p advent-cli

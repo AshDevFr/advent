@@ -24,7 +24,16 @@ export default defineConfig({
       // the docs, not part of them.
       plugins: [
         starlightLinksValidator({
-          exclude: ["/demo/", "/demo/**", "/northwind/", "/northwind/**", "/christmas/", "/christmas/**"],
+          exclude: [
+            "/demo/",
+            "/demo/**",
+            "/northwind/",
+            "/northwind/**",
+            "/christmas/",
+            "/christmas/**",
+            // Captured at publish time (make screenshots), not committed.
+            "/screenshots/**",
+          ],
         }),
       ],
       sidebar: [
