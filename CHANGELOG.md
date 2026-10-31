@@ -2,6 +2,39 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.2.0] - 2026-10-31
+
+### Features
+
+- Spread an event's days with every, weekdays or explicit dates
+- Let authors choose when hints appear
+- Show dismissable notices at the top of the calendar
+- Serve a calendar under a sub-path with --base or ADVENT_BASE
+- *(docs)* Add the documentation site and publish it with the demo
+- Add subtitle, signature, image position and background to the certificate
+- *(cli)* Preview the calendar locally with `advent preview`
+- Add a branded company showcase and a 24-day Christmas showcase
+- Show the brand logo, theme background and door artwork
+- Unlock reward files and links with the certificate
+
+### Bug Fixes
+
+- *(cli)* Exit quietly when the output pipe closes
+- *(web)* Give the certificate room and embed the logo as PNG
+
+### Documentation
+
+- Add the license files, README and contributing guide
+- Write the guide and the configuration reference
+- Capture the documentation's screenshots from the live showcases
+- Link the gallery from the docs home page and the README
+- Point the README at advent-engine.4sh.dev
+- Publish under advent-engine.4sh.dev
+
+### Testing
+
+- Fail when a configuration field is missing from the docs reference
+
 ## [0.1.0] - 2026-10-31
 
 ### Features
