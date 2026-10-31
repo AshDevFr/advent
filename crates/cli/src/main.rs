@@ -58,6 +58,8 @@ enum Command {
         #[arg(long, default_value = "dist")]
         out: PathBuf,
     },
+    /// Print when each day opens.
+    Schedule { event: Option<String> },
     /// Check that an event repo is complete and its sealed files open.
     Verify {
         event: Option<String>,
@@ -87,6 +89,7 @@ fn main() -> anyhow::Result<()> {
             command: KeeperCommand::Seal { event },
         } => commands::keeper::run(&event),
         Command::Build { until, out } => commands::build::run(until, &out),
+        Command::Schedule { event } => commands::schedule::run(event.as_deref()),
         Command::Verify {
             event,
             release,

@@ -71,6 +71,9 @@ fn build_publishes_only_released_days() {
         serde_json::json!({"1": "teaser", "2": "code", "3": "company"}),
         "types of released days only"
     );
+    let dates = event["dates"].as_array().unwrap();
+    assert_eq!(dates.len(), 7, "every day's date, released or not");
+    assert_eq!(dates[6], "2026-12-07");
 }
 
 #[test]

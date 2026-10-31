@@ -146,6 +146,9 @@ fn build_event(
         days: event.days,
         headline: event.story.title.clone(),
         intro: event.story.intro.clone(),
+        dates: (1..=event.days)
+            .map(|n| event.day_date(n).to_string())
+            .collect(),
         opens_at: first_release(&event).map(|t| t.to_rfc3339_opts(SecondsFormat::Secs, true)),
         released,
         types,

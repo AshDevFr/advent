@@ -18,10 +18,9 @@ import { useEventProgress } from "@/store";
 import { useThemeCss } from "@/useThemeCss";
 import { Message } from "./Landing";
 
-/** "Dec 7" for day `day` of an event starting on `start` (YYYY-MM-DD). */
-export function openingDate(start: string, day: number): string {
-  const date = new Date(`${start}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + day - 1);
+/** "Dec 7" for a date given as YYYY-MM-DD (the event's own calendar date). */
+export function shortDate(isoDate: string): string {
+  const date = new Date(`${isoDate}T12:00:00Z`);
   return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -71,7 +70,12 @@ export function EventPage({ id }: { id: string }) {
   const doors: Door[] = Array.from({ length: event.days }, (_, i) => {
     const day = i + 1;
     if (!released.has(day)) {
-      return { day, state: "locked", opens: openingDate(event.start, day) };
+      const date = event.dates[day - 1];
+      return {
+        day,
+        state: "locked",
+        opens: date ? shortDate(date) : undefined,
+      };
     }
     const word = progress.words[day];
     return {

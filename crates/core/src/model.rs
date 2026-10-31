@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use chrono::NaiveDate;
+use chrono::{Datelike, Days, NaiveDate, Weekday};
 use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
 
@@ -80,8 +80,25 @@ pub struct Event {
     /// opens every day this way).
     #[serde(default)]
     pub unlocked: u32,
+    /// A door every `every` days (counting only workdays with `weekdays`).
+    #[serde(default = "default_every")]
+    pub every: u32,
+    /// Only Monday to Friday; `start` must then be a weekday.
+    #[serde(default)]
+    pub weekdays: bool,
+    /// Explicit date of each day, instead of `every` / `weekdays`. Its
+    /// length is `days`, it is strictly increasing, and it begins at `start`.
+    pub dates: Option<Vec<NaiveDate>>,
     #[serde(default)]
     pub story: Story,
+}
+
+fn default_every() -> u32 {
+    1
+}
+
+fn is_weekend(date: NaiveDate) -> bool {
+    matches!(date.weekday(), Weekday::Sat | Weekday::Sun)
 }
 
 fn default_days() -> u32 {
@@ -103,6 +120,7 @@ impl Event {
         if event.days == 0 {
             return Err(invalid("days", "must be at least 1"));
         }
+        event.validate_schedule()?;
         if event.unlocked > event.days {
             return Err(invalid(
                 "unlocked",
@@ -113,6 +131,72 @@ impl Event {
             ));
         }
         Ok(event)
+    }
+
+    fn validate_schedule(&self) -> Result<(), ModelError> {
+        if self.every == 0 {
+            return Err(invalid("every", "must be at least 1"));
+        }
+        if let Some(dates) = &self.dates {
+            if self.every != 1 || self.weekdays {
+                return Err(invalid(
+                    "dates",
+                    "lists every date already, so it cannot be combined with `every` or `weekdays`",
+                ));
+            }
+            if dates.len() != self.days as usize {
+                return Err(invalid(
+                    "dates",
+                    format!(
+                        "has {} dates but the event has {} days",
+                        dates.len(),
+                        self.days
+                    ),
+                ));
+            }
+            if dates.first() != Some(&self.start) {
+                return Err(invalid("dates", "must begin with the `start` date"));
+            }
+            if let Some(pair) = dates.windows(2).find(|w| w[1] <= w[0]) {
+                return Err(invalid(
+                    "dates",
+                    format!(
+                        "must be in increasing order ({} is followed by {})",
+                        pair[0], pair[1]
+                    ),
+                ));
+            }
+        }
+        if self.weekdays && is_weekend(self.start) {
+            return Err(invalid(
+                "start",
+                format!(
+                    "is a {} but `weekdays` only opens doors Monday to Friday",
+                    self.start.weekday()
+                ),
+            ));
+        }
+        Ok(())
+    }
+
+    /// The date day `n` (1-based) opens. Days outside the event fall back
+    /// to the rule, which callers never ask for.
+    pub fn day_date(&self, n: u32) -> NaiveDate {
+        if let Some(dates) = &self.dates
+            && let Some(date) = dates.get(n.saturating_sub(1) as usize)
+        {
+            return *date;
+        }
+        let mut date = self.start;
+        for _ in 1..n.max(1) {
+            for _ in 0..self.every {
+                date = date + Days::new(1);
+                while self.weekdays && is_weekend(date) {
+                    date = date + Days::new(1);
+                }
+            }
+        }
+        date
     }
 }
 
@@ -368,6 +452,98 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    fn dates_of(yaml: &str) -> Vec<String> {
+        let event = Event::from_yaml(yaml).unwrap();
+        (1..=event.days)
+            .map(|n| event.day_date(n).to_string())
+            .collect()
+    }
+
+    const BASE: &str = "title: t\ntimezone: UTC\nstart: 2026-12-01\ndays: 12\n";
+
+    #[test]
+    fn model_days_are_consecutive_by_default() {
+        let dates = dates_of(BASE);
+        assert_eq!(dates.first().unwrap(), "2026-12-01");
+        assert_eq!(dates.last().unwrap(), "2026-12-12");
+    }
+
+    #[test]
+    fn model_every_spreads_days() {
+        let dates = dates_of(&format!("{BASE}every: 2\n"));
+        assert_eq!(dates[..3], ["2026-12-01", "2026-12-03", "2026-12-05"]);
+        assert_eq!(dates.last().unwrap(), "2026-12-23");
+    }
+
+    #[test]
+    fn model_weekdays_skip_weekends() {
+        // 2026-12-01 is a Tuesday.
+        let dates = dates_of(&format!("{BASE}weekdays: true\n"));
+        assert_eq!(
+            dates,
+            [
+                "2026-12-01",
+                "2026-12-02",
+                "2026-12-03",
+                "2026-12-04",
+                "2026-12-07",
+                "2026-12-08",
+                "2026-12-09",
+                "2026-12-10",
+                "2026-12-11",
+                "2026-12-14",
+                "2026-12-15",
+                "2026-12-16"
+            ]
+        );
+        let every_other = dates_of(&format!("{BASE}weekdays: true\nevery: 2\n"));
+        assert_eq!(
+            every_other[..4],
+            ["2026-12-01", "2026-12-03", "2026-12-07", "2026-12-09"]
+        );
+    }
+
+    #[test]
+    fn model_explicit_dates_are_used_as_given() {
+        let yaml = "title: t\ntimezone: UTC\nstart: 2026-12-01\ndays: 3\ndates: [2026-12-01, 2026-12-08, 2026-12-24]\n";
+        assert_eq!(dates_of(yaml), ["2026-12-01", "2026-12-08", "2026-12-24"]);
+    }
+
+    #[test]
+    fn model_schedule_options_are_validated() {
+        let field = |yaml: &str| match Event::from_yaml(yaml) {
+            Err(ModelError::Invalid { field, .. }) => field,
+            other => panic!("expected a validation error, got {other:?}"),
+        };
+        let three = "title: t\ntimezone: UTC\nstart: 2026-12-01\ndays: 3\n";
+        assert_eq!(
+            field(&format!("{three}dates: [2026-12-01, 2026-12-02]\n")),
+            "dates"
+        );
+        assert_eq!(
+            field(&format!(
+                "{three}dates: [2026-12-01, 2026-12-05, 2026-12-03]\n"
+            )),
+            "dates"
+        );
+        assert_eq!(
+            field(&format!(
+                "{three}dates: [2026-12-02, 2026-12-03, 2026-12-04]\n"
+            )),
+            "dates"
+        );
+        assert_eq!(
+            field(&format!(
+                "{three}every: 2\ndates: [2026-12-01, 2026-12-02, 2026-12-03]\n"
+            )),
+            "dates"
+        );
+        assert_eq!(field(&format!("{three}every: 0\n")), "every");
+        // 2026-12-05 is a Saturday.
+        let saturday = "title: t\ntimezone: UTC\nstart: 2026-12-05\ndays: 3\nweekdays: true\n";
+        assert_eq!(field(saturday), "start");
     }
 
     #[test]

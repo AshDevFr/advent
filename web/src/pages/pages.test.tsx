@@ -102,6 +102,29 @@ describe("event page", () => {
     await waitFor(() => expect(door).toHaveFocus());
   });
 
+  it("labels locked doors with their own date when days are spread out", async () => {
+    const spread = Array.from({ length: 12 }, (_, i) => {
+      const day = 1 + i * 2;
+      return `2026-12-${String(day).padStart(2, "0")}`;
+    });
+    serve({
+      "/2026/event.json": event({
+        days: 12,
+        dates: spread,
+        released: [1],
+        types: { 1: "teaser" },
+      }),
+    });
+    render(<App path="/2026/" />);
+    const grid = await screen.findByRole("list", { name: "Calendar doors" });
+    expect(
+      within(grid).getByRole("img", { name: "Day 2, locked, opens Dec 3" }),
+    ).toBeVisible();
+    expect(
+      within(grid).getByRole("img", { name: "Day 12, locked, opens Dec 23" }),
+    ).toHaveTextContent("Opens Dec 23");
+  });
+
   it("fills the key strip with collected words", async () => {
     serve({ "/2026/event.json": event() });
     useProgress.getState().solve("2026", 2, "returns");

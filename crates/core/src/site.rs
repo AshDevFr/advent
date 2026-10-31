@@ -44,6 +44,9 @@ pub struct EventInfo {
     /// When day 1 opens (RFC 3339, UTC), or null when it is already open
     /// regardless of the date. Drives the coming-soon countdown.
     pub opens_at: Option<String>,
+    /// Opening date of every day (YYYY-MM-DD), released or not, so locked
+    /// doors can say when they open.
+    pub dates: Vec<String>,
     /// Days published in this build, in order.
     pub released: Vec<u32>,
     /// Type label of each released day (and of no other), for the door cards.

@@ -47,7 +47,7 @@ pub fn first_release(event: &Event) -> Option<DateTime<Utc>> {
 }
 
 fn day_date(event: &Event, day: u32) -> NaiveDate {
-    event.start + Days::new(u64::from(day - 1))
+    event.day_date(day)
 }
 
 /// When `day` is released, or `None` for a day outside the event or one
@@ -94,6 +94,9 @@ mod tests {
             start: start.parse().unwrap(),
             days: 24,
             unlocked,
+            every: 1,
+            weekdays: false,
+            dates: None,
             story: Default::default(),
         }
     }
@@ -164,6 +167,23 @@ mod tests {
         assert_eq!(
             end_of_date(chrono_tz::Europe::Paris, date),
             at("2026-12-03T22:59:59Z")
+        );
+    }
+
+    #[test]
+    fn model_schedule_spread_days_release_on_their_own_date() {
+        let mut e = event("2026-12-01", 0);
+        e.every = 2;
+        assert!(!is_released(&e, 2, at("2026-12-02T12:00:00Z")));
+        assert!(
+            is_released(&e, 2, at("2026-12-02T23:00:00Z")),
+            "Dec 3, 00:00 Paris"
+        );
+        assert_eq!(hints_due(&e, 2, at("2026-12-03T12:00:00Z")), 0);
+        assert_eq!(
+            hints_due(&e, 2, at("2026-12-03T23:00:00Z")),
+            1,
+            "Dec 4, 00:00 Paris"
         );
     }
 

@@ -3,6 +3,12 @@ title: "Advent {{event}}"
 timezone: UTC
 start: "{{start}}"
 days: 24
+# By default days are consecutive from `start`. To spread them out, either:
+#   every: 2           # a door every 2 days (Dec 1, 3, 5, ...)
+#   weekdays: true     # Monday to Friday only (combine with every: N)
+# or list each day's date (as many as `days`, starting with `start`):
+#   dates: [2026-12-01, 2026-12-03, 2026-12-08]
+# `advent schedule` prints the result.
 story:
   # Optional display headline; the title above is used when absent.
   # title: "The Longest Night Hunt"

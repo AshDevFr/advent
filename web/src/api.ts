@@ -18,6 +18,8 @@ export interface EventInfo {
   /** The edition's display headline, if the story sets one. */
   headline: string | null;
   intro: string | null;
+  /** Opening date of every day (YYYY-MM-DD), released or not. */
+  dates: string[];
   /** When day 1 opens (RFC 3339), or null when it is already open. */
   opens_at: string | null;
   released: number[];
