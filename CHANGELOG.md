@@ -2,6 +2,17 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.5.0] - 2026-10-31
+
+### Features
+
+- Split the event template into a static and a company edition
+- Let preview serve beyond loopback, and drop the countdown once a day is out
+
+### Documentation
+
+- Show how to run the engine from its Docker image without installing it
+
 ## [0.4.0] - 2026-10-31
 
 ### Features
