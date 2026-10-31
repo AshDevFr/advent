@@ -1,0 +1,11 @@
+# The engine image is built from source; nothing generated or local goes in.
+.git
+.specs
+.playwright-mcp
+target
+dist
+web/node_modules
+web/dist
+docs
+showcases
+**/.DS_Store

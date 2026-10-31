@@ -341,6 +341,74 @@ mod tests {
         });
     }
 
+    /// Every setting has a `### \`path\`` entry in the server reference.
+    /// The literal is exhaustive on purpose: a new setting does not compile
+    /// until it is added here, and then this fails until it is documented.
+    #[test]
+    fn serve_config_reference_documents_every_setting() {
+        let config = ServerConfig {
+            listen: "x".into(),
+            public_url: Some("x".into()),
+            data: PathBuf::from("x"),
+            insecure_cookies: false,
+            trust_proxy: false,
+            limits: Limits {
+                requests_per_minute: 1,
+                guesses_per_minute: 1,
+                signin_per_hour: 1,
+                concurrent_checks: 1,
+                links_per_hour: 1,
+            },
+            mail: MailConfig {
+                sender: MailSender::Log,
+                from: Some("x".into()),
+                log_dir: Some(PathBuf::from("x")),
+                smtp: SmtpConfig {
+                    host: Some("x".into()),
+                    port: 1,
+                    username: Some("x".into()),
+                    password: Some("x".into()),
+                    tls: SmtpTls::None,
+                },
+                resend: ResendConfig {
+                    api_key: Some("x".into()),
+                    endpoint: "x".into(),
+                },
+            },
+            admin: AdminConfig {
+                auth: AdminAuth::Password,
+                password: Some("x".into()),
+            },
+        };
+        fn paths(prefix: &str, value: &serde_json::Value, out: &mut Vec<String>) {
+            match value {
+                serde_json::Value::Object(map) => {
+                    for (key, inner) in map {
+                        let path = if prefix.is_empty() {
+                            key.clone()
+                        } else {
+                            format!("{prefix}.{key}")
+                        };
+                        paths(&path, inner, out);
+                    }
+                }
+                _ => out.push(prefix.to_string()),
+            }
+        }
+        let mut settings = Vec::new();
+        paths("", &serde_json::to_value(&config).unwrap(), &mut settings);
+        let page = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../docs/src/content/docs/reference/server.md"
+        );
+        let text = std::fs::read_to_string(page).unwrap();
+        let missing: Vec<&String> = settings
+            .iter()
+            .filter(|path| !text.lines().any(|l| l.trim() == format!("### `{path}`")))
+            .collect();
+        assert!(missing.is_empty(), "undocumented in {page}: {missing:?}");
+    }
+
     #[test]
     fn serve_config_file_must_exist_when_given() {
         assert!(

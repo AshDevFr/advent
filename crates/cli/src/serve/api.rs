@@ -29,6 +29,7 @@ type Shared = State<Arc<AppState>>;
 
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
+        .route("/healthz", get(|| async { "ok" }))
         .route("/api/session", get(session))
         .route("/api/signin", post(sign_in))
         .route("/api/signin/request", post(request_link))

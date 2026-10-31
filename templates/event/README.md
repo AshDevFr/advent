@@ -52,3 +52,13 @@ One-time setup:
 
 Before a deploy, CI checks that no plaintext is tracked and that every day
 released so far opens; days still being written do not block it.
+
+## Company edition (optional)
+
+To host the calendar for invited players only, with progress on a server
+and an admin section, run it with `advent serve` from a Docker image instead
+of deploying the static site. `Dockerfile` and `.dockerignore` build that
+image with only the sealed files in it; `.github/workflows/image.yml` builds
+and pushes it to this repository's container registry on demand; and
+`docker-compose.example.yml` runs it. See
+https://advent-engine.4sh.dev/guides/company/.

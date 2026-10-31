@@ -1,6 +1,6 @@
 .PHONY: help build build-release fmt fmt-check lint test check wasm plaintext ci \
 	frontend-install frontend-lint frontend-test frontend-build frontend-ci frontend-dev \
-	changelog changelog-unreleased changelog-release release-prepare dist-plan demo acceptance \
+	changelog changelog-unreleased changelog-release release-prepare dist-plan demo acceptance docker-smoke \
 	docs docs-dev site showcases screenshots clean setup-hooks
 
 BLUE := \033[0;34m
@@ -88,6 +88,9 @@ changelog-release: ## Generate the changelog for a version (usage: make changelo
 # ── Release (cargo-dist) ─────────────────────────────────────────────────────
 # Pushing a tag vX.Y.Z runs .github/workflows/release.yml, which builds the
 # frontend and then the advent binaries with it embedded.
+
+docker-smoke: build ## Build the engine and a sample calendar image, run it and check it
+	scripts/docker-smoke.sh
 
 dist-plan: ## Show what a release would build
 	dist plan

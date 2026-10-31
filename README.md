@@ -33,6 +33,13 @@ Screenshots of both are in the [gallery](https://advent-engine.4sh.dev/start/gal
 - **Your brand, every year.** Name, logo and light and dark palettes in
   `brand.yaml`, a yearly look in `theme.yaml`, and days spread however you
   like: consecutive, every few days, workdays only, or on chosen dates.
+- **A company edition when you need one.** `advent serve` hosts the same
+  calendar for invited players only: personal sign-in links by email,
+  answers checked and progress kept on the server, an optional attempt
+  limit, and an admin section to invite players, follow each day's
+  completion and export the finishers. It ships as a Docker image built from
+  your repository. See the
+  [company edition guide](https://advent-engine.4sh.dev/guides/company/).
 
 ## Quick start
 

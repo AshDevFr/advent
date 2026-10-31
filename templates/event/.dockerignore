@@ -1,0 +1,12 @@
+# Only what the server needs goes into the image: the repo config, the brand,
+# each event's settings and theme, and the sealed output. Everything else,
+# plaintext puzzles and the editors key included, is left out by default.
+*
+!advent.yaml
+!brand
+!events
+events/*/day*/*
+!events/*/day*/sealed.json
+events/*/final/*
+!events/*/final/sealed.json
+!events/*/final/reward-*.bin

@@ -61,3 +61,12 @@ Check that a repository is fit to deploy: every day sealed and none outside the 
 
 - `--release`: also open every day and hint key with `ADVENT_RELEASE_KEY`. Its output names broken days and never content.
 - `--released`: only require the days released so far, and the certificate once the last day is out (the CI deploy gate).
+
+### `advent serve`
+
+Company edition: host the calendar for invited players, with sign-in links, guesses checked on the server, progress in SQLite and the admin section at `/admin`. Needs `ADVENT_RELEASE_KEY` and, in password mode, `ADVENT_ADMIN__PASSWORD`. Before listening it opens every sealed day, hint and the certificate, and refuses to start if one does not open. See the [company edition guide](/guides/company/) and the [server settings](/reference/server/).
+
+- `--repo <DIR>`: the event repository (default: the current folder or a parent). In the Docker image, `/event`.
+- `--config <FILE>`: a YAML settings file.
+- `--data <DIR>`: the database folder (default `./data`, `/data` in the image).
+- `--listen <ADDR>`: address and port (default `0.0.0.0:8080`).

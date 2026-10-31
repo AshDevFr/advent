@@ -1,0 +1,25 @@
+# Running the calendar image (company edition). Copy to docker-compose.yml on
+# the server, put the secrets in .env next to it (never in git), then:
+#   docker compose up -d
+services:
+  advent:
+    image: ghcr.io/OWNER/REPO:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # Players, progress and admin sessions: back this up.
+      - advent-data:/data
+    environment:
+      ADVENT_PUBLIC_URL: https://advent.example.com
+      ADVENT_MAIL__SENDER: smtp
+      ADVENT_MAIL__FROM: "Advent <advent@example.com>"
+      ADVENT_MAIL__SMTP__HOST: smtp.example.com
+      # Behind a reverse proxy that sets X-Forwarded-For:
+      ADVENT_TRUST_PROXY: "true"
+    env_file:
+      # ADVENT_RELEASE_KEY, ADVENT_ADMIN__PASSWORD, ADVENT_MAIL__SMTP__PASSWORD
+      - .env
+
+volumes:
+  advent-data:
