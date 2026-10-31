@@ -29,7 +29,12 @@ export function Countdown({ target }: { target: Date }) {
         [hours, "hours"],
         [minutes, "minutes"],
       ].map(([value, unit]) => (
-        <span key={unit} aria-hidden="true" className="flex flex-col">
+        // Equal widths, centred: the units line up whatever the digits.
+        <span
+          key={unit}
+          aria-hidden="true"
+          className="flex w-16 flex-col items-center text-center"
+        >
           <span className="text-3xl font-semibold text-primary">{value}</span>
           <span className="text-xs text-muted-foreground">{unit}</span>
         </span>
