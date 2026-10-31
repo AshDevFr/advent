@@ -55,6 +55,15 @@ export function EventPage({ id }: { id: string }) {
       .catch(() => {});
   }, [id]);
 
+  // The dialog is not opened by a Radix trigger, so Radix cannot restore
+  // focus; put keyboard users back on the door they opened.
+  function closeDoor(day: number) {
+    setOpenDay(null);
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLElement>(`button[data-day="${day}"]`)?.focus(),
+    );
+  }
+
   if (error) return <Message text={error} />;
   if (!event) return <Message text="Loading…" />;
 
@@ -108,7 +117,7 @@ export function EventPage({ id }: { id: string }) {
           event={id}
           day={openDay}
           type={event.types[openDay]}
-          onClose={() => setOpenDay(null)}
+          onClose={() => closeDoor(openDay)}
         />
       )}
     </main>

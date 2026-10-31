@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
 
@@ -78,6 +78,28 @@ describe("event page", () => {
       ).not.toBeInTheDocument();
     }
     expect(within(grid).getAllByRole("listitem")).toHaveLength(7);
+  });
+
+  it("returns focus to the door when its dialog closes", async () => {
+    serve({
+      "/2026/event.json": event(),
+      "/2026/api/day/2.json": {
+        day: 2,
+        title: "Count",
+        type: "code",
+        markdown: "x",
+      },
+      "/2026/api/day/2/locks.json": { word_locks: [] },
+      "/2026/api/day/2/hint.json": { hints: [] },
+    });
+    const user = userEvent.setup();
+    render(<App path="/2026/" />);
+    const door = await screen.findByRole("button", { name: "Day 2, open" });
+    await user.click(door);
+    await screen.findByRole("dialog", { name: "Count" });
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(door).toHaveFocus());
   });
 
   it("fills the key strip with collected words", async () => {

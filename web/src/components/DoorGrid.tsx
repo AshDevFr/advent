@@ -48,6 +48,7 @@ export function DoorGrid({
             <button
               type="button"
               aria-label={`Day ${door.day}, ${door.state}`}
+              data-day={door.day}
               onClick={() => onOpen(door.day)}
               className={cn(
                 "flex aspect-square w-full flex-col justify-between rounded-lg border p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:aspect-[5/6] sm:p-3",
