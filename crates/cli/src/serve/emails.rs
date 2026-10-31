@@ -43,6 +43,25 @@ pub fn lost_link(brand: &Branding, to: &str, url: &str) -> Email {
     )
 }
 
+/// An admin's sign-in link: single use, valid for a quarter of an hour.
+pub fn admin_link(brand: &Branding, to: &str, url: &str) -> Email {
+    let mut email = compose(
+        brand,
+        to,
+        &format!("Sign in to the {} admin", brand.name),
+        "Here is your link to the admin section. It works once, within 15 minutes.",
+        "Sign in",
+        url,
+    );
+    let note = "This link is personal: it signs you in as you, on any device. Keep it to yourself.";
+    let admin_note = "If you did not ask for it, ignore this email.";
+    email.text = email.text.replace(note, admin_note);
+    if let Some(html) = &mut email.html {
+        *html = html.replace(note, admin_note);
+    }
+    email
+}
+
 fn compose(
     brand: &Branding,
     to: &str,

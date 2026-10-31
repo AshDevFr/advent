@@ -43,6 +43,30 @@ pub struct Session {
     pub expires_at: DateTime<Utc>,
 }
 
+/// A signed-in admin browser. `email` is the admin in accounts mode, and
+/// `None` with the master password.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdminSession {
+    pub id_hash: String,
+    pub email: Option<String>,
+    pub expires_at: DateTime<Utc>,
+}
+
+/// An organiser, in accounts mode.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Admin {
+    pub email: String,
+    pub created_at: DateTime<Utc>,
+}
+
+/// A single-use, short-lived sign-in link for an admin (hash stored only).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdminLink {
+    pub id_hash: String,
+    pub email: String,
+    pub expires_at: DateTime<Utc>,
+}
+
 /// One player's state on one day of one event.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DayState {
@@ -92,20 +116,36 @@ pub trait Store: MaybeSend + MaybeSync {
     /// End every session of a player.
     fn remove_sessions(&self, email: &str) -> impl Future<Output = StoreResult<()>> + MaybeSend;
 
-    /// When an admin session (by hash) expires, if it exists.
     fn admin_session(
         &self,
         id_hash: &str,
-    ) -> impl Future<Output = StoreResult<Option<DateTime<Utc>>>> + MaybeSend;
+    ) -> impl Future<Output = StoreResult<Option<AdminSession>>> + MaybeSend;
     fn put_admin_session(
         &self,
-        id_hash: &str,
-        expires_at: DateTime<Utc>,
+        session: &AdminSession,
     ) -> impl Future<Output = StoreResult<()>> + MaybeSend;
     fn remove_admin_session(
         &self,
         id_hash: &str,
     ) -> impl Future<Output = StoreResult<()>> + MaybeSend;
+
+    /// Admins, in accounts mode.
+    fn admins(&self) -> impl Future<Output = StoreResult<Vec<Admin>>> + MaybeSend;
+    fn put_admin(&self, admin: &Admin) -> impl Future<Output = StoreResult<()>> + MaybeSend;
+    /// Remove an admin with their sessions and unused sign-in links.
+    fn remove_admin(&self, email: &str) -> impl Future<Output = StoreResult<()>> + MaybeSend;
+    fn put_admin_link(&self, link: &AdminLink)
+    -> impl Future<Output = StoreResult<()>> + MaybeSend;
+    /// Remove a sign-in link and return it, so it can be used only once.
+    fn take_admin_link(
+        &self,
+        id_hash: &str,
+    ) -> impl Future<Output = StoreResult<Option<AdminLink>>> + MaybeSend;
+    /// Read a sign-in link without using it.
+    fn admin_link(
+        &self,
+        id_hash: &str,
+    ) -> impl Future<Output = StoreResult<Option<AdminLink>>> + MaybeSend;
 
     fn day_state(
         &self,

@@ -68,7 +68,9 @@ impl From<ServerError> for ApiError {
             ServerError::InvalidLink | ServerError::UnknownPlayer | ServerError::UnknownDay(_) => {
                 StatusCode::NOT_FOUND
             }
-            ServerError::NotReleased(_) => StatusCode::FORBIDDEN,
+            ServerError::NotReleased(_) | ServerError::WrongSetupCode => StatusCode::FORBIDDEN,
+            ServerError::InvalidAdminLink => StatusCode::NOT_FOUND,
+            ServerError::SetupDone | ServerError::LastAdmin => StatusCode::CONFLICT,
             ServerError::InvalidName(_) => StatusCode::BAD_REQUEST,
             ServerError::Store(_) => {
                 eprintln!("error: {e}");

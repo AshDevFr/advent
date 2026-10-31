@@ -3,14 +3,14 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use serde::Serialize;
 
 use crate::content::EventData;
 use crate::players::{Invite, normalize_email};
 use crate::players::{hash_token, token};
 use crate::stats::finishers;
-use crate::store::{DayState, Player, Store};
+use crate::store::{Admin, AdminLink, AdminSession, DayState, Player, Store};
 use crate::{Entropy, ServerError};
 use sha2::{Digest, Sha256};
 
@@ -91,40 +91,160 @@ pub fn password_matches(given: &str, expected: &str) -> bool {
         == 0
 }
 
-/// Start an admin session; returns the token for the cookie (only its
-/// hash is stored).
+/// Start an admin session, for `email` in accounts mode or `None` with the
+/// master password; returns the token for the cookie (only its hash is
+/// stored).
 pub async fn admin_sign_in<S: Store>(
     store: &S,
     entropy: &impl Entropy,
+    email: Option<String>,
     expires_at: DateTime<Utc>,
 ) -> Result<String, ServerError> {
     let session = token(entropy);
     store
-        .put_admin_session(&hash_token(&session), expires_at)
+        .put_admin_session(&AdminSession {
+            id_hash: hash_token(&session),
+            email,
+            expires_at,
+        })
         .await?;
     Ok(session)
 }
 
-/// Whether an admin session token is valid at `now`.
-pub async fn admin_signed_in<S: Store>(
+/// The admin session for a token, if it is valid at `now`.
+pub async fn admin_session<S: Store>(
     store: &S,
     session: &str,
     now: DateTime<Utc>,
-) -> Result<bool, ServerError> {
+) -> Result<Option<AdminSession>, ServerError> {
     let hash = hash_token(session);
     match store.admin_session(&hash).await? {
-        Some(expires) if expires > now => Ok(true),
+        Some(s) if s.expires_at > now => Ok(Some(s)),
         Some(_) => {
             store.remove_admin_session(&hash).await?;
-            Ok(false)
+            Ok(None)
         }
-        None => Ok(false),
+        None => Ok(None),
     }
 }
 
 pub async fn admin_sign_out<S: Store>(store: &S, session: &str) -> Result<(), ServerError> {
     store.remove_admin_session(&hash_token(session)).await?;
     Ok(())
+}
+
+/// How long an admin's sign-in link works. Short and single-use, unlike a
+/// player's: admins sign in rarely and can do much more.
+pub const ADMIN_LINK_LIFETIME: Duration = Duration::minutes(15);
+
+/// Whether the first admin still has to be created.
+pub async fn setup_needed<S: Store>(store: &S) -> Result<bool, ServerError> {
+    Ok(store.admins().await?.is_empty())
+}
+
+/// Create the first admin with the one-time setup code. Refused once any
+/// admin exists, so whoever reaches a new server first cannot claim it
+/// without the code from its log.
+pub async fn setup<S: Store>(
+    store: &S,
+    given_code: &str,
+    expected_code: &str,
+    email: &str,
+    now: DateTime<Utc>,
+) -> Result<Admin, ServerError> {
+    if !setup_needed(store).await? {
+        return Err(ServerError::SetupDone);
+    }
+    if !password_matches(given_code.trim(), expected_code) {
+        return Err(ServerError::WrongSetupCode);
+    }
+    add_admin(store, email, now).await
+}
+
+/// Add an admin (accounts mode).
+pub async fn add_admin<S: Store>(
+    store: &S,
+    email: &str,
+    now: DateTime<Utc>,
+) -> Result<Admin, ServerError> {
+    let email = normalize_email(email).ok_or(ServerError::UnknownPlayer)?;
+    if let Some(existing) = store.admins().await?.into_iter().find(|a| a.email == email) {
+        return Ok(existing);
+    }
+    let admin = Admin {
+        email,
+        created_at: now,
+    };
+    store.put_admin(&admin).await?;
+    Ok(admin)
+}
+
+/// Remove an admin, unless they are the last one.
+pub async fn remove_admin<S: Store>(store: &S, email: &str) -> Result<(), ServerError> {
+    let email = normalize_email(email).ok_or(ServerError::UnknownPlayer)?;
+    let admins = store.admins().await?;
+    if !admins.iter().any(|a| a.email == email) {
+        return Err(ServerError::UnknownPlayer);
+    }
+    if admins.len() == 1 {
+        return Err(ServerError::LastAdmin);
+    }
+    store.remove_admin(&email).await?;
+    Ok(())
+}
+
+/// A sign-in link for an admin, or `None` if the address is not an admin.
+/// Returns the token for the email; only its hash is stored.
+pub async fn admin_link<S: Store>(
+    store: &S,
+    entropy: &impl Entropy,
+    email: &str,
+    now: DateTime<Utc>,
+) -> Result<Option<String>, ServerError> {
+    let Some(email) = normalize_email(email) else {
+        return Ok(None);
+    };
+    if !store.admins().await?.iter().any(|a| a.email == email) {
+        return Ok(None);
+    }
+    let link = token(entropy);
+    store
+        .put_admin_link(&AdminLink {
+            id_hash: hash_token(&link),
+            email,
+            expires_at: now + ADMIN_LINK_LIFETIME,
+        })
+        .await?;
+    Ok(Some(link))
+}
+
+/// Whose link it is, without using it (the link page shows it first).
+pub async fn admin_link_owner<S: Store>(
+    store: &S,
+    link: &str,
+    now: DateTime<Utc>,
+) -> Result<String, ServerError> {
+    match store.admin_link(&hash_token(link)).await? {
+        Some(l) if l.expires_at > now => Ok(l.email),
+        _ => Err(ServerError::InvalidAdminLink),
+    }
+}
+
+/// Use a sign-in link: it works once, within its lifetime, for an admin who
+/// still exists. Returns the admin's email.
+pub async fn use_admin_link<S: Store>(
+    store: &S,
+    link: &str,
+    now: DateTime<Utc>,
+) -> Result<String, ServerError> {
+    let Some(found) = store.take_admin_link(&hash_token(link)).await? else {
+        return Err(ServerError::InvalidAdminLink);
+    };
+    let still_admin = store.admins().await?.iter().any(|a| a.email == found.email);
+    if found.expires_at <= now || !still_admin {
+        return Err(ServerError::InvalidAdminLink);
+    }
+    Ok(found.email)
 }
 
 /// What an import would do, before doing it.

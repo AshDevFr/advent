@@ -1,5 +1,6 @@
-//! The admin API under `/api/admin/`: signing in with the master password,
-//! the invite list, players, stats and exports.
+//! The admin API under `/api/admin/`: signing in (with the master password,
+//! or as a named admin with an email link), the first-admin setup, the
+//! invite list, players, stats and exports.
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -19,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use super::api::{ApiError, ApiResult, check_limit, client_ip, cookie_value};
+use super::config::AdminAuth;
 use super::limits::Kind;
 use super::{AppState, OsEntropy, emails};
 
@@ -34,6 +36,12 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/api/admin/login", post(login))
         .route("/api/admin/logout", post(logout))
         .route("/api/admin/session", get(session))
+        .route("/api/admin/mode", get(mode))
+        .route("/api/admin/setup", post(setup))
+        .route("/api/admin/signin/{link}", get(link_owner))
+        .route("/api/admin/signin", post(use_link))
+        .route("/api/admin/admins", get(list_admins).post(add_admin))
+        .route("/api/admin/admins/{email}", delete(remove_admin))
         .route("/api/admin/events", get(events))
         .route("/api/admin/events/{event}/stats", get(event_stats))
         .route("/api/admin/events/{event}/players", get(players_table))
@@ -84,21 +92,42 @@ fn admin_cookie(state: &AppState, value: &str, expires: DateTime<Utc>) -> Header
     .expect("cookie values are base64 and dates")
 }
 
-/// Only a signed-in admin gets past this.
-async fn require_admin(state: &AppState, headers: &HeaderMap) -> ApiResult<()> {
+/// Only a signed-in admin gets past this. A session only counts in the
+/// mode that opened it, so switching `admin.auth` signs everyone out.
+async fn require_admin(state: &AppState, headers: &HeaderMap) -> ApiResult<Option<String>> {
     let token = cookie_value(headers, ADMIN_COOKIE).ok_or(ServerError::NoSession)?;
-    if admin::admin_signed_in(&state.store, &token, state.clock.now()).await? {
-        Ok(())
-    } else {
-        Err(ServerError::NoSession.into())
+    let session = admin::admin_session(&state.store, &token, state.clock.now())
+        .await?
+        .ok_or(ServerError::NoSession)?;
+    match (state.config.admin.auth, &session.email) {
+        (AdminAuth::Password, None) | (AdminAuth::Accounts, Some(_)) => Ok(session.email),
+        _ => Err(ServerError::NoSession.into()),
     }
+}
+
+/// Open an admin session and set its cookie on `response`.
+async fn open_session(
+    state: &AppState,
+    email: Option<String>,
+    mut response: Response,
+) -> ApiResult<Response> {
+    let expires = state.clock.now() + ADMIN_SESSION;
+    let token = admin::admin_sign_in(&state.store, &OsEntropy, email, expires).await?;
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, admin_cookie(state, &token, expires));
+    Ok(response)
 }
 
 #[derive(Deserialize)]
 struct Login {
-    password: String,
+    password: Option<String>,
+    email: Option<String>,
 }
 
+/// Password mode: check the master password. Accounts mode: email a
+/// sign-in link to the address if it is an admin's, answering the same
+/// either way.
 async fn login(
     State(state): Shared,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
@@ -107,19 +136,189 @@ async fn login(
 ) -> ApiResult<Response> {
     let ip = client_ip(&state, &headers, peer);
     check_limit(&state, Kind::AdminLogin, ip)?;
+    if state.config.admin.auth == AdminAuth::Accounts {
+        let email = body.email.as_deref().and_then(normalize_email);
+        if let Some(email) = email
+            && check_limit(&state, Kind::LinkEmail, format!("admin:{email}")).is_ok()
+        {
+            let state = state.clone();
+            tokio::spawn(async move {
+                if let Err(e) = send_admin_link(&state, &email).await {
+                    eprintln!("error: admin sign-in link for {email}: {e}");
+                }
+            });
+        }
+        return Ok((
+            StatusCode::ACCEPTED,
+            Json(json!({ "message": "If this address belongs to an admin, a sign-in link is on its way." })),
+        )
+            .into_response());
+    }
     let expected = state.config.admin.password.as_deref().unwrap_or_default();
-    if expected.is_empty() || !admin::password_matches(&body.password, expected) {
+    let given = body.password.unwrap_or_default();
+    if expected.is_empty() || !admin::password_matches(&given, expected) {
         eprintln!("warning: failed admin sign-in from {ip}");
         return Err(ApiError(StatusCode::UNAUTHORIZED, "wrong password".into()));
     }
-    let expires = state.clock.now() + ADMIN_SESSION;
-    let token = admin::admin_sign_in(&state.store, &OsEntropy, expires).await?;
     eprintln!("admin signed in from {ip}");
-    let mut response = StatusCode::NO_CONTENT.into_response();
-    response
-        .headers_mut()
-        .insert(header::SET_COOKIE, admin_cookie(&state, &token, expires));
-    Ok(response)
+    open_session(&state, None, StatusCode::NO_CONTENT.into_response()).await
+}
+
+/// Email an admin their single-use sign-in link (nothing if not an admin).
+async fn send_admin_link(state: &AppState, email: &str) -> Result<(), String> {
+    let Some(link) = admin::admin_link(&state.store, &OsEntropy, email, state.clock.now())
+        .await
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(());
+    };
+    let url = format!("{}/admin/signin/{link}", state.config.link_base());
+    let message = emails::admin_link(&state.content().brand, email, &url);
+    state.mailer.send(&message).await.map_err(|e| e.to_string())
+}
+
+#[derive(Serialize)]
+struct Mode {
+    auth: AdminAuth,
+    setup_needed: bool,
+}
+
+/// How to sign in here, for the login page.
+async fn mode(State(state): Shared) -> ApiResult<Json<Mode>> {
+    let accounts = state.config.admin.auth == AdminAuth::Accounts;
+    Ok(Json(Mode {
+        auth: state.config.admin.auth,
+        setup_needed: accounts && admin::setup_needed(&state.store).await?,
+    }))
+}
+
+#[derive(Deserialize)]
+struct Setup {
+    code: String,
+    email: String,
+}
+
+/// Create the first admin with the setup code from the server log, and
+/// sign them in straight away: a mistyped address can then be fixed by
+/// adding the right one, rather than locking the server.
+async fn setup(
+    State(state): Shared,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Setup>,
+) -> ApiResult<Response> {
+    if state.config.admin.auth != AdminAuth::Accounts {
+        return Err(ApiError(
+            StatusCode::NOT_FOUND,
+            "no setup in password mode".into(),
+        ));
+    }
+    let ip = client_ip(&state, &headers, peer);
+    check_limit(&state, Kind::AdminLogin, ip)?;
+    let first = admin::setup(
+        &state.store,
+        &body.code,
+        &state.setup_code,
+        &body.email,
+        state.clock.now(),
+    )
+    .await
+    .map_err(|e| {
+        if e == ServerError::WrongSetupCode {
+            eprintln!("warning: wrong setup code from {ip}");
+        }
+        ApiError::from(e)
+    })?;
+    eprintln!("first admin created: {}", first.email);
+    open_session(
+        &state,
+        Some(first.email),
+        StatusCode::NO_CONTENT.into_response(),
+    )
+    .await
+}
+
+/// Whose admin link it is, without using it.
+async fn link_owner(
+    State(state): Shared,
+    Path(link): Path<String>,
+) -> ApiResult<Json<serde_json::Value>> {
+    let email = admin::admin_link_owner(&state.store, &link, state.clock.now()).await?;
+    Ok(Json(json!({ "email": email })))
+}
+
+#[derive(Deserialize)]
+struct UseLink {
+    link: String,
+}
+
+async fn use_link(State(state): Shared, Json(body): Json<UseLink>) -> ApiResult<Response> {
+    if state.config.admin.auth != AdminAuth::Accounts {
+        return Err(ServerError::InvalidAdminLink.into());
+    }
+    let email = admin::use_admin_link(&state.store, &body.link, state.clock.now()).await?;
+    eprintln!("admin {email} signed in");
+    open_session(&state, Some(email), StatusCode::NO_CONTENT.into_response()).await
+}
+
+fn accounts_only(state: &AppState) -> ApiResult<()> {
+    if state.config.admin.auth == AdminAuth::Accounts {
+        Ok(())
+    } else {
+        Err(ApiError(
+            StatusCode::NOT_FOUND,
+            "admins exist only with `admin.auth: accounts`".into(),
+        ))
+    }
+}
+
+async fn list_admins(
+    State(state): Shared,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<advent_server::Admin>>> {
+    accounts_only(&state)?;
+    require_admin(&state, &headers).await?;
+    Ok(Json(state.store.admins().await.map_err(ServerError::from)?))
+}
+
+#[derive(Deserialize)]
+struct NewAdmin {
+    email: String,
+}
+
+/// Add an admin and email them a sign-in link.
+async fn add_admin(
+    State(state): Shared,
+    headers: HeaderMap,
+    Json(body): Json<NewAdmin>,
+) -> ApiResult<(StatusCode, Json<advent_server::Admin>)> {
+    accounts_only(&state)?;
+    require_admin(&state, &headers).await?;
+    if normalize_email(&body.email).is_none() {
+        return Err(ApiError(
+            StatusCode::BAD_REQUEST,
+            "not an email address".into(),
+        ));
+    }
+    let added = admin::add_admin(&state.store, &body.email, state.clock.now()).await?;
+    send_admin_link(&state, &added.email).await.map_err(|e| {
+        ApiError(
+            StatusCode::BAD_GATEWAY,
+            format!("added, but the email could not be sent: {e}"),
+        )
+    })?;
+    Ok((StatusCode::CREATED, Json(added)))
+}
+
+async fn remove_admin(
+    State(state): Shared,
+    headers: HeaderMap,
+    Path(email): Path<String>,
+) -> ApiResult<StatusCode> {
+    accounts_only(&state)?;
+    require_admin(&state, &headers).await?;
+    admin::remove_admin(&state.store, &email).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn logout(State(state): Shared, headers: HeaderMap) -> ApiResult<Response> {

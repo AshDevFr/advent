@@ -99,6 +99,8 @@ pub struct AppState {
     pub limiter: Limiter,
     pub mailer: mail::Sender,
     pub jobs: admin::Jobs,
+    /// The one-time code that creates the first admin (accounts mode).
+    pub setup_code: String,
     content: RwLock<Arc<Content>>,
 }
 
@@ -130,6 +132,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     content::validate(&root, &identities)?;
     let content = content::load(&root, &identities, clock.now())?;
     let store = SqliteStore::open(&config.data.join("advent.db"))?;
+    let setup_code = setup_code(&config, &store)?;
 
     let limits = &config.limits;
     let state = Arc::new(AppState {
@@ -160,6 +163,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         ]),
         mailer,
         jobs: Default::default(),
+        setup_code,
         checker: PoolChecker {
             permits: Semaphore::new(limits.concurrent_checks),
         },
@@ -173,6 +177,34 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         .enable_all()
         .build()?
         .block_on(serve(state, root, identities))
+}
+
+/// The code that creates the first admin: `admin.setup_code` if set, else
+/// a fresh one, printed while no admin exists so whoever runs the server
+/// (and can read its log) is the one who claims it.
+fn setup_code(config: &ServerConfig, store: &SqliteStore) -> anyhow::Result<String> {
+    let code = config.admin.setup_code.clone().unwrap_or_else(|| {
+        const ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let mut bytes = [0u8; 8];
+        getrandom::fill(&mut bytes).expect("the OS random number generator is unavailable");
+        let chars: String = bytes
+            .iter()
+            .map(|b| ALPHABET[usize::from(*b) % ALPHABET.len()] as char)
+            .collect();
+        format!("{}-{}", &chars[..4], &chars[4..])
+    });
+    if config.admin.auth == config::AdminAuth::Accounts {
+        let needed = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?
+            .block_on(advent_server::admin::setup_needed(store))?;
+        if needed {
+            eprintln!(
+                "No admin yet. Open /admin and create the first one with the setup code: {code}"
+            );
+        }
+    }
+    Ok(code)
 }
 
 async fn serve(

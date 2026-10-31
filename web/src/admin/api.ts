@@ -93,8 +93,29 @@ async function call<T>(
 
 const enc = encodeURIComponent;
 
+export interface AdminMode {
+  auth: "password" | "accounts";
+  setup_needed: boolean;
+}
+
+export interface AdminAccount {
+  email: string;
+  created_at: string;
+}
+
 export const admin = {
+  mode: () => call<AdminMode>("GET", "mode"),
   login: (password: string) => call<void>("POST", "login", { password }),
+  requestLink: (email: string) =>
+    call<{ message: string }>("POST", "login", { email }),
+  setup: (code: string, email: string) =>
+    call<void>("POST", "setup", { code, email }),
+  linkOwner: (link: string) =>
+    call<{ email: string }>("GET", `signin/${enc(link)}`),
+  redeemLink: (link: string) => call<void>("POST", "signin", { link }),
+  admins: () => call<AdminAccount[]>("GET", "admins"),
+  addAdmin: (email: string) => call<AdminAccount>("POST", "admins", { email }),
+  removeAdmin: (email: string) => call<void>("DELETE", `admins/${enc(email)}`),
   logout: () => call<void>("POST", "logout", {}),
   session: () => call<void>("GET", "session"),
   events: () => call<AdminEvent[]>("GET", "events"),

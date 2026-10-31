@@ -4,16 +4,16 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
-use chrono::{DateTime, Utc};
-
-use crate::store::{DayState, Player, Session, Store, StoreResult};
+use crate::store::{Admin, AdminLink, AdminSession, DayState, Player, Session, Store, StoreResult};
 
 #[derive(Default)]
 struct Inner {
     players: BTreeMap<String, Player>,
     sessions: BTreeMap<String, Session>,
     days: BTreeMap<(String, String, u32), DayState>,
-    admin_sessions: BTreeMap<String, DateTime<Utc>>,
+    admin_sessions: BTreeMap<String, AdminSession>,
+    admins: BTreeMap<String, Admin>,
+    admin_links: BTreeMap<String, AdminLink>,
 }
 
 #[derive(Default)]
@@ -85,20 +85,56 @@ impl Store for MemoryStore {
         Ok(())
     }
 
-    async fn admin_session(&self, id_hash: &str) -> StoreResult<Option<DateTime<Utc>>> {
-        Ok(self.lock().admin_sessions.get(id_hash).copied())
+    async fn admin_session(&self, id_hash: &str) -> StoreResult<Option<AdminSession>> {
+        Ok(self.lock().admin_sessions.get(id_hash).cloned())
     }
 
-    async fn put_admin_session(&self, id_hash: &str, expires_at: DateTime<Utc>) -> StoreResult<()> {
+    async fn put_admin_session(&self, session: &AdminSession) -> StoreResult<()> {
         self.lock()
             .admin_sessions
-            .insert(id_hash.to_string(), expires_at);
+            .insert(session.id_hash.clone(), session.clone());
         Ok(())
     }
 
     async fn remove_admin_session(&self, id_hash: &str) -> StoreResult<()> {
         self.lock().admin_sessions.remove(id_hash);
         Ok(())
+    }
+
+    async fn admins(&self) -> StoreResult<Vec<Admin>> {
+        Ok(self.lock().admins.values().cloned().collect())
+    }
+
+    async fn put_admin(&self, admin: &Admin) -> StoreResult<()> {
+        self.lock()
+            .admins
+            .insert(admin.email.clone(), admin.clone());
+        Ok(())
+    }
+
+    async fn remove_admin(&self, email: &str) -> StoreResult<()> {
+        let mut inner = self.lock();
+        inner.admins.remove(email);
+        inner
+            .admin_sessions
+            .retain(|_, s| s.email.as_deref() != Some(email));
+        inner.admin_links.retain(|_, l| l.email != email);
+        Ok(())
+    }
+
+    async fn put_admin_link(&self, link: &AdminLink) -> StoreResult<()> {
+        self.lock()
+            .admin_links
+            .insert(link.id_hash.clone(), link.clone());
+        Ok(())
+    }
+
+    async fn take_admin_link(&self, id_hash: &str) -> StoreResult<Option<AdminLink>> {
+        Ok(self.lock().admin_links.remove(id_hash))
+    }
+
+    async fn admin_link(&self, id_hash: &str) -> StoreResult<Option<AdminLink>> {
+        Ok(self.lock().admin_links.get(id_hash).cloned())
     }
 
     async fn day_state(&self, email: &str, event: &str, day: u32) -> StoreResult<Option<DayState>> {

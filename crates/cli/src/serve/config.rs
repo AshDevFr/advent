@@ -41,6 +41,10 @@ pub struct AdminConfig {
     pub auth: AdminAuth,
     /// The master password, from `ADVENT_ADMIN__PASSWORD`.
     pub password: Option<String>,
+    /// The one-time code that creates the first admin in accounts mode,
+    /// from `ADVENT_ADMIN__SETUP_CODE`; without it, one is generated and
+    /// printed in the log at start.
+    pub setup_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,6 +53,8 @@ pub enum AdminAuth {
     /// One shared password, no admin accounts.
     #[default]
     Password,
+    /// Admins are people who sign in with an email link.
+    Accounts,
 }
 
 /// How emails are sent.
@@ -378,6 +384,7 @@ mod tests {
             admin: AdminConfig {
                 auth: AdminAuth::Password,
                 password: Some("x".into()),
+                setup_code: Some("x".into()),
             },
         };
         fn paths(prefix: &str, value: &serde_json::Value, out: &mut Vec<String>) {

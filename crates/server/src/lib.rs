@@ -19,7 +19,9 @@ pub mod store;
 
 pub use content::EventData;
 pub use guess::{Checker, InlineChecker, Outcome, guess};
-pub use store::{DayState, Player, Session, Solved, Store, StoreError};
+pub use store::{
+    Admin, AdminLink, AdminSession, DayState, Player, Session, Solved, Store, StoreError,
+};
 
 /// `Send` on native targets, nothing on wasm32.
 ///
@@ -64,6 +66,14 @@ pub enum ServerError {
     UnknownDay(u32),
     #[error("day {0} is not open yet")]
     NotReleased(u32),
+    #[error("this sign-in link is not valid or has expired")]
+    InvalidAdminLink,
+    #[error("the setup code is wrong")]
+    WrongSetupCode,
+    #[error("setup is done: an admin exists")]
+    SetupDone,
+    #[error("the last admin cannot be removed")]
+    LastAdmin,
     #[error("invalid name: {0}")]
     InvalidName(String),
     #[error(transparent)]

@@ -9,8 +9,9 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use advent_server::store::StoreResult;
-use advent_server::{DayState, Player, Session, Solved, Store, StoreError};
-use chrono::{DateTime, Utc};
+use advent_server::{
+    Admin, AdminLink, AdminSession, DayState, Player, Session, Solved, Store, StoreError,
+};
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
 /// Schema steps, applied in order; `PRAGMA user_version` records how many
@@ -49,6 +50,18 @@ const MIGRATIONS: &[&str] = &[
     "
     CREATE TABLE admin_sessions (
         id_hash TEXT PRIMARY KEY,
+        expires_at TEXT NOT NULL
+    );
+",
+    "
+    ALTER TABLE admin_sessions ADD COLUMN email TEXT;
+    CREATE TABLE admins (
+        email TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE admin_links (
+        id_hash TEXT PRIMARY KEY,
+        email TEXT NOT NULL REFERENCES admins(email) ON DELETE CASCADE,
         expires_at TEXT NOT NULL
     );
 ",
@@ -126,6 +139,14 @@ fn player_row(row: &Row) -> rusqlite::Result<Player> {
         created_at: row.get(4)?,
         invited_at: row.get(5)?,
         last_seen: row.get(6)?,
+    })
+}
+
+fn admin_link_row(row: &Row) -> rusqlite::Result<AdminLink> {
+    Ok(AdminLink {
+        id_hash: row.get(0)?,
+        email: row.get(1)?,
+        expires_at: row.get(2)?,
     })
 }
 
@@ -269,25 +290,31 @@ impl Store for SqliteStore {
         .await
     }
 
-    async fn admin_session(&self, id_hash: &str) -> StoreResult<Option<DateTime<Utc>>> {
+    async fn admin_session(&self, id_hash: &str) -> StoreResult<Option<AdminSession>> {
         let id_hash = id_hash.to_string();
         self.call(move |c| {
             c.query_row(
-                "SELECT expires_at FROM admin_sessions WHERE id_hash = ?1",
+                "SELECT id_hash, email, expires_at FROM admin_sessions WHERE id_hash = ?1",
                 [id_hash],
-                |r| r.get(0),
+                |r| {
+                    Ok(AdminSession {
+                        id_hash: r.get(0)?,
+                        email: r.get(1)?,
+                        expires_at: r.get(2)?,
+                    })
+                },
             )
             .optional()
         })
         .await
     }
 
-    async fn put_admin_session(&self, id_hash: &str, expires_at: DateTime<Utc>) -> StoreResult<()> {
-        let id_hash = id_hash.to_string();
+    async fn put_admin_session(&self, session: &AdminSession) -> StoreResult<()> {
+        let s = session.clone();
         self.call(move |c| {
             c.execute(
-                "INSERT OR REPLACE INTO admin_sessions (id_hash, expires_at) VALUES (?1, ?2)",
-                params![id_hash, expires_at],
+                "INSERT OR REPLACE INTO admin_sessions (id_hash, email, expires_at) VALUES (?1, ?2, ?3)",
+                params![s.id_hash, s.email, s.expires_at],
             )
             .map(drop)
         })
@@ -299,6 +326,83 @@ impl Store for SqliteStore {
         self.call(move |c| {
             c.execute("DELETE FROM admin_sessions WHERE id_hash = ?1", [id_hash])
                 .map(drop)
+        })
+        .await
+    }
+
+    async fn admins(&self) -> StoreResult<Vec<Admin>> {
+        self.call(|c| {
+            let mut stmt = c.prepare("SELECT email, created_at FROM admins ORDER BY email")?;
+            stmt.query_map([], |r| {
+                Ok(Admin {
+                    email: r.get(0)?,
+                    created_at: r.get(1)?,
+                })
+            })?
+            .collect()
+        })
+        .await
+    }
+
+    async fn put_admin(&self, admin: &Admin) -> StoreResult<()> {
+        let a = admin.clone();
+        self.call(move |c| {
+            c.execute(
+                "INSERT OR REPLACE INTO admins (email, created_at) VALUES (?1, ?2)",
+                params![a.email, a.created_at],
+            )
+            .map(drop)
+        })
+        .await
+    }
+
+    async fn remove_admin(&self, email: &str) -> StoreResult<()> {
+        let email = email.to_string();
+        // Links go with the admin (ON DELETE CASCADE); sessions by email.
+        self.call(move |c| {
+            c.execute("DELETE FROM admin_sessions WHERE email = ?1", [&email])?;
+            c.execute("DELETE FROM admins WHERE email = ?1", [&email])
+                .map(drop)
+        })
+        .await
+    }
+
+    async fn put_admin_link(&self, link: &AdminLink) -> StoreResult<()> {
+        let l = link.clone();
+        self.call(move |c| {
+            c.execute(
+                "INSERT INTO admin_links (id_hash, email, expires_at) VALUES (?1, ?2, ?3)",
+                params![l.id_hash, l.email, l.expires_at],
+            )
+            .map(drop)
+        })
+        .await
+    }
+
+    async fn take_admin_link(&self, id_hash: &str) -> StoreResult<Option<AdminLink>> {
+        let id_hash = id_hash.to_string();
+        // One statement deletes and returns the row, so two requests with
+        // the same link cannot both get it.
+        self.call(move |c| {
+            c.query_row(
+                "DELETE FROM admin_links WHERE id_hash = ?1 RETURNING id_hash, email, expires_at",
+                [id_hash],
+                admin_link_row,
+            )
+            .optional()
+        })
+        .await
+    }
+
+    async fn admin_link(&self, id_hash: &str) -> StoreResult<Option<AdminLink>> {
+        let id_hash = id_hash.to_string();
+        self.call(move |c| {
+            c.query_row(
+                "SELECT id_hash, email, expires_at FROM admin_links WHERE id_hash = ?1",
+                [id_hash],
+                admin_link_row,
+            )
+            .optional()
         })
         .await
     }
@@ -376,6 +480,7 @@ impl Store for SqliteStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{DateTime, Utc};
 
     fn at(text: &str) -> DateTime<Utc> {
         text.parse().unwrap()
@@ -447,6 +552,47 @@ mod tests {
         assert_eq!(store.session("h").await.unwrap(), None);
         assert!(store.event_days("2026").await.unwrap().is_empty());
         assert_eq!(store.players().await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn sqlite_store_keeps_admins_links_and_sessions() {
+        let store = SqliteStore::in_memory().unwrap();
+        let ana = Admin {
+            email: "ana@x.io".into(),
+            created_at: at("2026-11-20T00:00:00Z"),
+        };
+        store.put_admin(&ana).await.unwrap();
+        assert_eq!(store.admins().await.unwrap(), vec![ana]);
+
+        let link = AdminLink {
+            id_hash: "L".into(),
+            email: "ana@x.io".into(),
+            expires_at: at("2026-11-20T00:15:00Z"),
+        };
+        store.put_admin_link(&link).await.unwrap();
+        assert_eq!(store.admin_link("L").await.unwrap(), Some(link.clone()));
+        assert_eq!(store.take_admin_link("L").await.unwrap(), Some(link));
+        assert_eq!(store.take_admin_link("L").await.unwrap(), None, "used once");
+
+        let session = AdminSession {
+            id_hash: "S".into(),
+            email: Some("ana@x.io".into()),
+            expires_at: at("2026-11-21T00:00:00Z"),
+        };
+        store.put_admin_session(&session).await.unwrap();
+        assert_eq!(store.admin_session("S").await.unwrap(), Some(session));
+        store
+            .put_admin_link(&AdminLink {
+                id_hash: "L2".into(),
+                email: "ana@x.io".into(),
+                expires_at: at("2026-11-20T00:15:00Z"),
+            })
+            .await
+            .unwrap();
+        store.remove_admin("ana@x.io").await.unwrap();
+        assert!(store.admins().await.unwrap().is_empty());
+        assert_eq!(store.admin_session("S").await.unwrap(), None);
+        assert_eq!(store.admin_link("L2").await.unwrap(), None);
     }
 
     #[test]

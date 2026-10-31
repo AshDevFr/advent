@@ -6,7 +6,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Message } from "@/pages/Landing";
 import { useThemeCss } from "@/useThemeCss";
-import { type AdminEvent, admin, Unauthorized } from "./api";
+import { AccountLogin, AdminLinkPage, Setup } from "./Accounts";
+import { AdminsPage } from "./Admins";
+import { type AdminEvent, type AdminMode, admin, Unauthorized } from "./api";
 import { ImportPage } from "./Import";
 import { Overview } from "./Overview";
 import { PlayerPage } from "./Player";
@@ -14,8 +16,10 @@ import { PlayersPage } from "./Players";
 
 /** Where the admin section is, relative to the base path. */
 export interface Route {
-  page: "overview" | "players" | "player" | "import";
+  page: "overview" | "players" | "player" | "import" | "admins" | "signin";
   email?: string;
+  /** The sign-in link token, on `admin/signin/<token>`. */
+  token?: string;
 }
 
 export function parseRoute(path: string, base = basePath()): Route {
@@ -25,6 +29,9 @@ export function parseRoute(path: string, base = basePath()): Route {
     return { page: "player", email: decodeURIComponent(email) };
   if (page === "players") return { page: "players" };
   if (page === "import") return { page: "import" };
+  if (page === "admins") return { page: "admins" };
+  if (page === "signin" && email)
+    return { page: "signin", token: decodeURIComponent(email) };
   return { page: "overview" };
 }
 
@@ -36,6 +43,10 @@ export function routePath(route: Route): string {
       return `admin/players/${encodeURIComponent(route.email ?? "")}`;
     case "import":
       return "admin/import";
+    case "admins":
+      return "admin/admins";
+    case "signin":
+      return `admin/signin/${encodeURIComponent(route.token ?? "")}`;
     default:
       return "admin";
   }
@@ -56,6 +67,14 @@ export default function AdminApp({
   const [state, setState] = useState<"checking" | "out" | "in">("checking");
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [event, setEvent] = useState<string | null>(null);
+  const [mode, setMode] = useState<AdminMode | null>(null);
+
+  useEffect(() => {
+    admin
+      .mode()
+      .then(setMode)
+      .catch(() => setMode({ auth: "password", setup_needed: false }));
+  }, []);
 
   const navigate: Navigate = useCallback(
     (next) => {
@@ -98,8 +117,19 @@ export default function AdminApp({
     return (
       <Message text="The admin section exists only when the calendar is hosted by advent serve." />
     );
-  if (state === "checking") return <Message text="Loading…" />;
-  if (state === "out") return <Login onSignedIn={() => setState("in")} />;
+  const signedIn = () => {
+    setState("in");
+    if (route.page === "signin") navigate({ page: "overview" });
+  };
+  if (state === "checking" || !mode) return <Message text="Loading…" />;
+  if (state === "out") {
+    if (mode.auth === "accounts" && mode.setup_needed)
+      return <Setup onSignedIn={signedIn} />;
+    if (mode.auth === "accounts" && route.page === "signin" && route.token)
+      return <AdminLinkPage link={route.token} onSignedIn={signedIn} />;
+    if (mode.auth === "accounts") return <AccountLogin />;
+    return <Login onSignedIn={signedIn} />;
+  }
 
   const signedOut = () => setState("out");
   const current = events.find((e) => e.id === event) ?? null;
@@ -107,6 +137,9 @@ export default function AdminApp({
     { label: "Overview", route: { page: "overview" } },
     { label: "Players", route: { page: "players" } },
     { label: "Invite", route: { page: "import" } },
+    ...(mode.auth === "accounts"
+      ? [{ label: "Admins", route: { page: "admins" } as Route }]
+      : []),
   ];
 
   return (
@@ -161,7 +194,7 @@ export default function AdminApp({
           <ThemeToggle />
         </div>
       </header>
-      {!current && route.page !== "import" ? (
+      {!current && route.page !== "import" && route.page !== "admins" ? (
         <p role="status">No calendar to show.</p>
       ) : route.page === "players" && current ? (
         <PlayersPage
@@ -176,6 +209,8 @@ export default function AdminApp({
           navigate={navigate}
           onSignedOut={signedOut}
         />
+      ) : route.page === "admins" ? (
+        <AdminsPage onSignedOut={signedOut} />
       ) : route.page === "import" ? (
         <ImportPage navigate={navigate} onSignedOut={signedOut} />
       ) : current ? (

@@ -23,7 +23,7 @@ Writing and sealing days, brands, themes, schedules, hints and the certificate a
 - The server holds the same release key as the static build and publishes released days and hints on the same schedule, from its own clock.
 - Players never receive word locks. A guess goes to the server, which counts it, checks it against the sealed lock, records the solve and returns the word. The certificate still opens in the browser, with the words.
 - Each invited player has one personal link, sent by email. Opening it shows **Sign in as alice@example.com**; signing in needs that click, because company mail filters open every link in an email to scan it. The link works on any device for the whole event, and a lost link can be requested again from the sign-in page.
-- Organisers sign in at `/admin` with a master password.
+- Organisers sign in at `/admin`, with a shared master password or, in accounts mode, each with their own email link (see [admin sign-in](#admin-sign-in)).
 
 ## Build the calendar image
 
@@ -59,9 +59,16 @@ Before it listens, the server opens every sealed day, hint and the certificate w
 
 Players get their links by email, through your company's SMTP relay (`mail.sender: smtp`) or [Resend](https://resend.com) (`mail.sender: resend`). `public_url` must be the address players open the calendar at, since links start with it. To try the server without sending anything, leave `mail.sender` at `log`: emails are printed in the log.
 
+## Admin sign-in
+
+Two modes, set with [`admin.auth`](/reference/server/#adminauth):
+
+- **`password`** (the default): one master password from `ADVENT_ADMIN__PASSWORD`, shared by the organisers. Simple for a small team or a one-off event.
+- **`accounts`**: each organiser signs in with a link emailed to them, which works once, within 15 minutes. On a new server, open `/admin`: it asks for the **setup code** printed in the server's log (or set with `ADVENT_ADMIN__SETUP_CODE`) and your address, creates you as the first admin and signs you in. The code stops working once an admin exists, so the first visitor cannot claim the server. Add and remove other admins from the **Admins** page; the last one cannot be removed.
+
 ## Invite players
 
-1. Open `/admin` and sign in with the master password.
+1. Open `/admin` and sign in.
 2. **Invite**: paste one address per line, optionally followed by a name (`alice@example.com, Alice Martin`), or choose a CSV file with `email` and `name` columns. **Preview** shows what is new, what already exists and what is not an address; nothing changes until you confirm.
 3. **Overview**: **Send invitations** emails everyone not invited yet, one at a time, and shows the progress and any failures.
 

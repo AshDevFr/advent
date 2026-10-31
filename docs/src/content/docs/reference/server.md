@@ -151,12 +151,18 @@ A [Resend](https://resend.com) API key allowed to send from `mail.from`'s domain
 
 ### `admin.auth`
 
-**Type** `password` · **Default** `password`
+**Type** `password` or `accounts` · **Default** `password`
 
-How organisers sign in to `/admin`. `password`: one shared master password, no admin accounts.
+How organisers sign in to `/admin`. `password`: one shared master password, no admin accounts, for small or one-off setups. `accounts`: admins are people, each signing in with a link emailed to them (single use, valid 15 minutes); the first admin is created with the setup code, and further admins are added from the **Admins** page. Switching between the two signs every admin out.
 
 ### `admin.password`
 
 **Type** string · **Required** with `password` · `ADVENT_ADMIN__PASSWORD`
 
 The master password. The server refuses to start without one. Five attempts per address every 15 minutes; failures are logged.
+
+### `admin.setup_code`
+
+**Type** string · **Optional** · `ADVENT_ADMIN__SETUP_CODE`
+
+With `accounts`: the one-time code that creates the first admin at `/admin`. Without it, the server generates one and prints it in its log at every start while no admin exists, so only someone who can read the log can claim a new server. It stops working once an admin exists.
