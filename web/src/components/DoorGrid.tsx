@@ -27,11 +27,13 @@ export function DoorGrid({
   artwork?: string[];
 }) {
   // A wash of the door colour keeps the number and date readable on top.
-  const wrapped = (day: number) => {
+  // Open doors keep their picture, faded further so the door reads as opened.
+  const wrapped = (day: number, wash: number) => {
     if (!artwork?.length) return undefined;
     const image = artwork[(day - 1) % artwork.length];
+    const tint = `color-mix(in srgb, var(--surface-raised) ${wash}%, transparent)`;
     return {
-      backgroundImage: `linear-gradient(color-mix(in srgb, var(--surface-raised) 55%, transparent), color-mix(in srgb, var(--surface-raised) 55%, transparent)), url("${image}")`,
+      backgroundImage: `linear-gradient(${tint}, ${tint}), url("${image}")`,
       backgroundSize: "cover",
       backgroundPosition: "center",
     };
@@ -52,7 +54,7 @@ export function DoorGrid({
               role="img"
               aria-label={`Day ${door.day}, locked${door.opens ? `, opens ${door.opens}` : ""}`}
               data-artwork={artwork?.length ? "" : undefined}
-              style={wrapped(door.day)}
+              style={wrapped(door.day, 55)}
               className="flex aspect-square flex-col justify-between rounded-lg border bg-card/60 p-2.5 sm:aspect-[5/6] sm:p-3"
             >
               <span
@@ -73,14 +75,21 @@ export function DoorGrid({
               aria-label={`Day ${door.day}, ${door.state}`}
               data-day={door.day}
               onClick={() => onOpen(door.day)}
+              style={wrapped(door.day, 82)}
               className={cn(
                 "flex aspect-square w-full flex-col justify-between rounded-lg border p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:aspect-[5/6] sm:p-3",
                 door.state === "solved"
                   ? "border-primary bg-primary/10"
                   : "bg-card hover:border-primary",
+                artwork?.length && "border-2",
               )}
             >
-              <span className="font-display text-3xl font-semibold sm:text-4xl">
+              <span
+                className={cn(
+                  "font-display text-3xl font-semibold sm:text-4xl",
+                  artwork?.length && onArt,
+                )}
+              >
                 {door.day}
               </span>
               <span className="flex flex-col gap-0.5">

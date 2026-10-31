@@ -254,8 +254,11 @@ describe("branding on the calendar", () => {
     const day5 = within(grid).getByRole("img", { name: /Day 5, locked/ });
     expect(day5.style.backgroundImage).toContain("2026/theme/fox.svg");
     expect(within(day5).getByText("5")).toHaveClass("text-foreground");
+    // Open doors keep their picture, faded further under the door colour.
     const open = within(grid).getByRole("button", { name: "Day 2, open" });
-    expect(open.style.backgroundImage).toBe("");
+    expect(open.style.backgroundImage).toContain("2026/theme/owl.svg");
+    expect(open.style.backgroundImage).toContain("82%");
+    expect(day4.style.backgroundImage).toContain("55%");
   });
 
   it("stays plain without theme decoration", async () => {
