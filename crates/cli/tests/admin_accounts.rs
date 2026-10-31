@@ -106,7 +106,10 @@ fn admin_accounts_wizard_needs_the_code_and_works_once() {
     let server = accounts(&repo, outbox.path());
     let c = client();
     let mode: Value = server.get(&c, "/api/admin/mode").json().unwrap();
-    assert_eq!(mode, json!({ "auth": "accounts", "setup_needed": true }));
+    assert_eq!(
+        mode,
+        json!({ "auth": "accounts", "setup_needed": true, "oidc": null })
+    );
 
     let wrong = server.post(
         &c,
@@ -233,5 +236,8 @@ fn admin_accounts_routes_are_absent_in_password_mode() {
     );
     assert_eq!(setup.status(), StatusCode::NOT_FOUND);
     let mode: Value = server.get(&c, "/api/admin/mode").json().unwrap();
-    assert_eq!(mode, json!({ "auth": "password", "setup_needed": false }));
+    assert_eq!(
+        mode,
+        json!({ "auth": "password", "setup_needed": false, "oidc": null })
+    );
 }

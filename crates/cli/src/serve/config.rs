@@ -45,6 +45,38 @@ pub struct AdminConfig {
     /// from `ADVENT_ADMIN__SETUP_CODE`; without it, one is generated and
     /// printed in the log at start.
     pub setup_code: Option<String>,
+    pub oidc: OidcConfig,
+}
+
+/// Single sign-on for admins through the company's identity provider
+/// (accounts mode). Members of `admin_group` are admins.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct OidcConfig {
+    /// The provider's issuer URL; setting it turns single sign-on on.
+    pub issuer: Option<String>,
+    pub client_id: Option<String>,
+    /// From `ADVENT_ADMIN__OIDC__CLIENT_SECRET`.
+    pub client_secret: Option<String>,
+    /// The group whose members are admins.
+    pub admin_group: Option<String>,
+    /// The ID token claim listing the user's groups.
+    pub groups_claim: String,
+    /// The provider's name on the sign-in button.
+    pub label: String,
+}
+
+impl Default for OidcConfig {
+    fn default() -> Self {
+        Self {
+            issuer: None,
+            client_id: None,
+            client_secret: None,
+            admin_group: None,
+            groups_claim: "groups".into(),
+            label: "single sign-on".into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,6 +246,7 @@ impl ServerConfig {
             anyhow::bail!("`limits.concurrent_checks` must be at least 1");
         }
         config.check_mail()?;
+        config.check_oidc()?;
         if config.admin.auth == AdminAuth::Password
             && config.admin.password.as_deref().is_none_or(str::is_empty)
         {
@@ -249,6 +282,28 @@ impl ServerConfig {
             ),
             MailSender::Log => Ok(()),
         }
+    }
+
+    /// Single sign-on needs accounts mode (its admins are named people), the
+    /// client registration, the group, and `public_url` for the callback.
+    fn check_oidc(&self) -> anyhow::Result<()> {
+        let oidc = &self.admin.oidc;
+        if oidc.issuer.is_none() {
+            return Ok(());
+        }
+        if self.admin.auth != AdminAuth::Accounts {
+            anyhow::bail!("`admin.oidc` needs `admin.auth: accounts`");
+        }
+        for (missing, key) in [
+            (oidc.client_id.is_none(), "admin.oidc.client_id"),
+            (oidc.admin_group.is_none(), "admin.oidc.admin_group"),
+            (self.public_url.is_none(), "public_url"),
+        ] {
+            if missing {
+                anyhow::bail!("`{key}` is required with `admin.oidc.issuer`");
+            }
+        }
+        Ok(())
     }
 
     /// Where links in emails point.
@@ -385,6 +440,14 @@ mod tests {
                 auth: AdminAuth::Password,
                 password: Some("x".into()),
                 setup_code: Some("x".into()),
+                oidc: OidcConfig {
+                    issuer: Some("x".into()),
+                    client_id: Some("x".into()),
+                    client_secret: Some("x".into()),
+                    admin_group: Some("x".into()),
+                    groups_claim: "x".into(),
+                    label: "x".into(),
+                },
             },
         };
         fn paths(prefix: &str, value: &serde_json::Value, out: &mut Vec<String>) {
@@ -414,6 +477,31 @@ mod tests {
             .filter(|path| !text.lines().any(|l| l.trim() == format!("### `{path}`")))
             .collect();
         assert!(missing.is_empty(), "undocumented in {page}: {missing:?}");
+    }
+
+    #[test]
+    fn serve_config_single_sign_on_needs_accounts_and_details() {
+        Jail::expect_with(|jail| {
+            jail.set_env("ADVENT_ADMIN__PASSWORD", "admin");
+            jail.set_env("ADVENT_ADMIN__OIDC__ISSUER", "https://id.acme.com");
+            let err = ServerConfig::load(None, &Overrides::default()).unwrap_err();
+            assert!(
+                format!("{err:#}").contains("admin.auth: accounts"),
+                "{err:#}"
+            );
+            jail.set_env("ADVENT_ADMIN__AUTH", "accounts");
+            let err = ServerConfig::load(None, &Overrides::default()).unwrap_err();
+            assert!(
+                format!("{err:#}").contains("admin.oidc.client_id"),
+                "{err:#}"
+            );
+            jail.set_env("ADVENT_ADMIN__OIDC__CLIENT_ID", "advent");
+            jail.set_env("ADVENT_ADMIN__OIDC__ADMIN_GROUP", "advent-admins");
+            jail.set_env("ADVENT_PUBLIC_URL", "https://advent.acme.com");
+            let config = ServerConfig::load(None, &Overrides::default()).unwrap();
+            assert_eq!(config.admin.oidc.groups_claim, "groups");
+            Ok(())
+        });
     }
 
     #[test]

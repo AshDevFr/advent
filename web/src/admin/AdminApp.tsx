@@ -54,6 +54,11 @@ export function routePath(route: Route): string {
 
 export type Navigate = (route: Route) => void;
 
+/** A message single sign-on sent back in `?error=`. */
+function returnedError(): string | null {
+  return new URLSearchParams(window.location.search).get("error");
+}
+
 /** `/admin`: the organisers' section of a server-hosted calendar. */
 export default function AdminApp({
   path,
@@ -73,7 +78,9 @@ export default function AdminApp({
     admin
       .mode()
       .then(setMode)
-      .catch(() => setMode({ auth: "password", setup_needed: false }));
+      .catch(() =>
+        setMode({ auth: "password", setup_needed: false, oidc: null }),
+      );
   }, []);
 
   const navigate: Navigate = useCallback(
@@ -127,7 +134,8 @@ export default function AdminApp({
       return <Setup onSignedIn={signedIn} />;
     if (mode.auth === "accounts" && route.page === "signin" && route.token)
       return <AdminLinkPage link={route.token} onSignedIn={signedIn} />;
-    if (mode.auth === "accounts") return <AccountLogin />;
+    if (mode.auth === "accounts")
+      return <AccountLogin oidc={mode.oidc} error={returnedError()} />;
     return <Login onSignedIn={signedIn} />;
   }
 

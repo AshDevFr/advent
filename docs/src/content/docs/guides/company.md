@@ -66,6 +66,8 @@ Two modes, set with [`admin.auth`](/reference/server/#adminauth):
 - **`password`** (the default): one master password from `ADVENT_ADMIN__PASSWORD`, shared by the organisers. Simple for a small team or a one-off event.
 - **`accounts`**: each organiser signs in with a link emailed to them, which works once, within 15 minutes. On a new server, open `/admin`: it asks for the **setup code** printed in the server's log (or set with `ADVENT_ADMIN__SETUP_CODE`) and your address, creates you as the first admin and signs you in. The code stops working once an admin exists, so the first visitor cannot claim the server. Add and remove other admins from the **Admins** page; the last one cannot be removed.
 
+In accounts mode, admins can also use **single sign-on** with your identity provider: members of one group are admins, without being added one by one. See the [single sign-on settings](/reference/server/#single-sign-on). Once it is set up, the setup code is not needed.
+
 ## Invite players
 
 1. Open `/admin` and sign in.

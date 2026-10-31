@@ -126,6 +126,6 @@ pub fn cookie_client() -> Client {
 
 /// reqwest is built without a bundled TLS provider (the server picks
 /// ring for its email clients), so the test client needs one too.
-fn install_crypto() {
+pub fn install_crypto() {
     let _ = rustls::crypto::ring::default_provider().install_default();
 }

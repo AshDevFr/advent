@@ -36,6 +36,11 @@ opt-level = 3
 [profile.dev.package.pbkdf2]
 opt-level = 3
 
+# The single sign-on tests generate an RSA key, which takes many seconds
+# unoptimized.
+[profile.dev.package.num-bigint-dig]
+opt-level = 3
+
 # The profile `dist build` compiles release binaries with.
 [profile.dist]
 inherits = "release"

@@ -5,9 +5,8 @@ import {
   useId,
   useState,
 } from "react";
-
-import { Button } from "@/components/ui/button";
-import { admin } from "./api";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { admin, oidcStartUrl } from "./api";
 
 const field =
   "h-9 rounded-md border bg-card px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -25,8 +24,17 @@ function Frame({ children }: { children: ReactNode }) {
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** Accounts mode: ask for a sign-in link by email. */
-export function AccountLogin() {
+/**
+ * Accounts mode: single sign-on when the company's identity provider is
+ * set up, and a sign-in link by email.
+ */
+export function AccountLogin({
+  oidc = null,
+  error = null,
+}: {
+  oidc?: string | null;
+  error?: string | null;
+}) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -45,6 +53,19 @@ export function AccountLogin() {
 
   return (
     <Frame>
+      {error && (
+        <p role="alert" className="text-sm">
+          {error[0].toUpperCase() + error.slice(1)}.
+        </p>
+      )}
+      {oidc && (
+        <>
+          <a href={oidcStartUrl} className={buttonVariants()}>
+            Sign in with {oidc}
+          </a>
+          <p className="text-center text-xs text-muted-foreground">or</p>
+        </>
+      )}
       <form onSubmit={submit} className="flex flex-col gap-2">
         <label htmlFor={inputId} className="font-medium">
           Your admin email address

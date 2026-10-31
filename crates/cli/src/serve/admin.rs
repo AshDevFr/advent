@@ -37,6 +37,8 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/api/admin/logout", post(logout))
         .route("/api/admin/session", get(session))
         .route("/api/admin/mode", get(mode))
+        .route("/api/admin/oidc/start", get(oidc_start))
+        .route("/api/admin/oidc/callback", get(oidc_callback))
         .route("/api/admin/setup", post(setup))
         .route("/api/admin/signin/{link}", get(link_owner))
         .route("/api/admin/signin", post(use_link))
@@ -181,6 +183,8 @@ async fn send_admin_link(state: &AppState, email: &str) -> Result<(), String> {
 struct Mode {
     auth: AdminAuth,
     setup_needed: bool,
+    /// The single sign-on button's label, when it is configured.
+    oidc: Option<String>,
 }
 
 /// How to sign in here, for the login page.
@@ -188,8 +192,104 @@ async fn mode(State(state): Shared) -> ApiResult<Json<Mode>> {
     let accounts = state.config.admin.auth == AdminAuth::Accounts;
     Ok(Json(Mode {
         auth: state.config.admin.auth,
-        setup_needed: accounts && admin::setup_needed(&state.store).await?,
+        // With single sign-on, group members are admins already: the
+        // setup code still works but the login page need not ask for it.
+        setup_needed: accounts && state.oidc.is_none() && admin::setup_needed(&state.store).await?,
+        oidc: state.oidc.as_ref().map(|o| o.label().to_string()),
     }))
+}
+
+fn redirect(to: &str) -> Response {
+    (
+        StatusCode::FOUND,
+        [
+            (header::LOCATION, to.to_string()),
+            (header::CACHE_CONTROL, "no-store".into()),
+        ],
+    )
+        .into_response()
+}
+
+/// Back to the admin page with a message for the login form.
+fn admin_page_with_error(state: &AppState, message: &str) -> Response {
+    let encoded: String = message
+        .bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                (b as char).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect();
+    redirect(&format!(
+        "{}/admin?error={encoded}",
+        state.config.link_base()
+    ))
+}
+
+/// Send the browser to the identity provider.
+async fn oidc_start(
+    State(state): Shared,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> ApiResult<Response> {
+    let Some(oidc) = &state.oidc else {
+        return Err(ApiError(
+            StatusCode::NOT_FOUND,
+            "single sign-on is not configured".into(),
+        ));
+    };
+    check_limit(&state, Kind::AdminLogin, client_ip(&state, &headers, peer))?;
+    Ok(match oidc.start().await {
+        Ok(url) => redirect(&url),
+        Err(e) => {
+            eprintln!("error: {e}");
+            admin_page_with_error(&state, &e.to_string())
+        }
+    })
+}
+
+#[derive(Deserialize)]
+struct Callback {
+    code: Option<String>,
+    state: Option<String>,
+    error: Option<String>,
+}
+
+/// The provider sends the browser back here.
+async fn oidc_callback(
+    State(state): Shared,
+    axum::extract::Query(query): axum::extract::Query<Callback>,
+) -> ApiResult<Response> {
+    let Some(oidc) = &state.oidc else {
+        return Err(ApiError(
+            StatusCode::NOT_FOUND,
+            "single sign-on is not configured".into(),
+        ));
+    };
+    if let Some(error) = query.error {
+        return Ok(admin_page_with_error(
+            &state,
+            &format!("the identity provider refused: {error}"),
+        ));
+    }
+    let (Some(code), Some(returned)) = (query.code, query.state) else {
+        return Ok(admin_page_with_error(
+            &state,
+            "the identity provider sent no code",
+        ));
+    };
+    match oidc.finish(&code, &returned).await {
+        Ok(email) => {
+            eprintln!("admin {email} signed in with single sign-on");
+            let landing = redirect(&format!("{}/admin", state.config.link_base()));
+            open_session(&state, Some(email), landing).await
+        }
+        Err(e) => {
+            eprintln!("warning: single sign-on refused: {e}");
+            Ok(admin_page_with_error(&state, &e.to_string()))
+        }
+    }
 }
 
 #[derive(Deserialize)]

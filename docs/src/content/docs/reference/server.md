@@ -166,3 +166,41 @@ The master password. The server refuses to start without one. Five attempts per 
 **Type** string · **Optional** · `ADVENT_ADMIN__SETUP_CODE`
 
 With `accounts`: the one-time code that creates the first admin at `/admin`. Without it, the server generates one and prints it in its log at every start while no admin exists, so only someone who can read the log can claim a new server. It stops working once an admin exists.
+
+## Single sign-on
+
+With `admin.auth: accounts`, admins can also sign in through your company's identity provider (OpenID Connect: Microsoft Entra ID, Okta, Google Workspace, Keycloak, Authentik and others). Members of `admin.oidc.admin_group` are admins; nobody else is. Register the server with the provider as a web application whose redirect URI is `<public_url>/api/admin/oidc/callback`, and have the provider put the user's groups in the ID token.
+
+### `admin.oidc.issuer`
+
+**Type** URL · **Optional**
+
+The provider's issuer, as in its `/.well-known/openid-configuration`. Setting it turns single sign-on on.
+
+### `admin.oidc.client_id`
+
+**Type** string · **Required** with `issuer`
+
+### `admin.oidc.client_secret`
+
+**Type** string · **Optional** · `ADVENT_ADMIN__OIDC__CLIENT_SECRET`
+
+The client secret, for a confidential client. The sign-in always uses PKCE as well.
+
+### `admin.oidc.admin_group`
+
+**Type** string · **Required** with `issuer`
+
+The group whose members are admins, as the provider writes it in the groups claim (a name or, with Entra ID, the group's object id).
+
+### `admin.oidc.groups_claim`
+
+**Type** string · **Default** `groups`
+
+The ID token claim listing the user's groups, if the provider uses another name.
+
+### `admin.oidc.label`
+
+**Type** string · **Default** `single sign-on`
+
+The provider's name on the button: **Sign in with Acme SSO**.

@@ -96,7 +96,12 @@ const enc = encodeURIComponent;
 export interface AdminMode {
   auth: "password" | "accounts";
   setup_needed: boolean;
+  /** The single sign-on button's label, when it is configured. */
+  oidc: string | null;
 }
+
+/** Where the single sign-on button sends the browser. */
+export const oidcStartUrl = "api/admin/oidc/start";
 
 export interface AdminAccount {
   email: string;

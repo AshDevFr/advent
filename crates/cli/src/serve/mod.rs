@@ -10,6 +10,7 @@ mod content;
 mod emails;
 mod limits;
 mod mail;
+mod oidc;
 mod sqlite;
 
 use std::net::SocketAddr;
@@ -101,6 +102,8 @@ pub struct AppState {
     pub jobs: admin::Jobs,
     /// The one-time code that creates the first admin (accounts mode).
     pub setup_code: String,
+    /// Single sign-on for admins, when `admin.oidc` is configured.
+    pub oidc: Option<oidc::Oidc>,
     content: RwLock<Arc<Content>>,
 }
 
@@ -133,6 +136,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     let content = content::load(&root, &identities, clock.now())?;
     let store = SqliteStore::open(&config.data.join("advent.db"))?;
     let setup_code = setup_code(&config, &store)?;
+    let oidc = oidc::Oidc::new(&config.admin.oidc, &config.link_base())?;
 
     let limits = &config.limits;
     let state = Arc::new(AppState {
@@ -164,6 +168,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         mailer,
         jobs: Default::default(),
         setup_code,
+        oidc,
         checker: PoolChecker {
             permits: Semaphore::new(limits.concurrent_checks),
         },

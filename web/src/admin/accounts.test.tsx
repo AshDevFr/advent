@@ -161,6 +161,33 @@ describe("admin accounts", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers single sign-on and shows why it was refused", async () => {
+    server((_m, url) => {
+      if (url === "api/admin/mode")
+        return json({
+          auth: "accounts",
+          setup_needed: false,
+          oidc: "Acme SSO",
+        });
+      if (url === "api/admin/session") return json({}, 401);
+    });
+    window.history.replaceState(
+      null,
+      "",
+      "/admin?error=you%20are%20not%20in%20the%20admin%20group",
+    );
+    render(<AdminApp path="/admin" base="/" />);
+    expect(
+      await screen.findByRole("link", { name: "Sign in with Acme SSO" }),
+    ).toHaveAttribute("href", "api/admin/oidc/start");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "You are not in the admin group.",
+    );
+    expect(
+      screen.getByLabelText("Your admin email address"),
+    ).toBeInTheDocument();
+  });
+
   it("removes an admin only after confirmation", async () => {
     const calls = accounts(false, (method, url) => {
       if (url === "api/admin/signin/tok")
