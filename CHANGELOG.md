@@ -2,6 +2,23 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.3.0] - 2026-10-31
+
+### Features
+
+- Add the runtime-independent server core for the company edition
+- Host the calendar for invited players with `advent serve`
+- Email sign-in links through SMTP, Resend or a log
+- Sign players in and play through the server on a hosted calendar
+- Manage players and follow the calendar from an admin section
+- Ship the company edition as a Docker image, with its docs
+- Let organisers sign in as themselves with admin accounts
+- Sign admins in through the company's identity provider
+
+### Refactor
+
+- Put the calendar's answers and progress behind a client
+
 ## [0.2.0] - 2026-10-31
 
 ### Features
