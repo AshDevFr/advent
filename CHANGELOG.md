@@ -2,6 +2,12 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.3.1] - 2026-10-31
+
+### Bug Fixes
+
+- Build Apple silicon releases on macos-15
+
 ## [0.3.0] - 2026-10-31
 
 ### Features
