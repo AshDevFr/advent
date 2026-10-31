@@ -8,7 +8,12 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { normalize, openWord, type WordLock } from "@/crypto";
+import {
+  InsecureContextError,
+  normalize,
+  openWord,
+  type WordLock,
+} from "@/crypto";
 import { useEventProgress, useProgress } from "@/store";
 import { Markdown } from "./Markdown";
 
@@ -82,6 +87,7 @@ function AnswerForm({
   const [guess, setGuess] = useState("");
   const [checking, setChecking] = useState(false);
   const [wrong, setWrong] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const { solve, attempt } = useProgress.getState();
   const inputId = useId();
 
@@ -89,17 +95,28 @@ function AnswerForm({
     e.preventDefault();
     if (!guess.trim() || checking) return;
     setChecking(true);
-    attempt(event, day);
-    let found: string | null = null;
-    for (const lock of locks) {
-      found = await openWord(guess, lock);
-      if (found) break;
-    }
-    setChecking(false);
-    if (found) {
-      solve(event, day, found);
-    } else {
-      setWrong(guess);
+    setProblem(null);
+    try {
+      let found: string | null = null;
+      for (const lock of locks) {
+        found = await openWord(guess, lock);
+        if (found) break;
+      }
+      attempt(event, day);
+      if (found) {
+        solve(event, day, found);
+      } else {
+        setWrong(guess);
+      }
+    } catch (e) {
+      setWrong(null);
+      setProblem(
+        e instanceof InsecureContextError
+          ? e.message
+          : "Your answer could not be checked. Please try again.",
+      );
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -120,6 +137,11 @@ function AnswerForm({
           {checking ? "Checking…" : "Check"}
         </Button>
       </div>
+      {problem && (
+        <p role="alert" className="text-sm">
+          {problem}
+        </p>
+      )}
       {wrong !== null && (
         <p role="alert" className="text-sm text-muted-foreground">
           Not quite. Answers are compared in lowercase, ignoring accents, spaces

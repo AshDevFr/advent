@@ -29,6 +29,24 @@ export interface Certificate {
   image?: string;
 }
 
+/**
+ * Browsers only expose WebCrypto in secure contexts (https, or localhost),
+ * so a calendar served over plain http cannot check answers.
+ */
+export class InsecureContextError extends Error {
+  constructor() {
+    super(
+      "Checking answers needs a secure connection: open this calendar over https.",
+    );
+  }
+}
+
+function subtle(): SubtleCrypto {
+  const api = globalThis.crypto?.subtle;
+  if (!api) throw new InsecureContextError();
+  return api;
+}
+
 /** NFD, strip combining marks, lowercase, keep only `[a-z0-9]`. */
 export function normalize(input: string): string {
   return input
@@ -50,14 +68,14 @@ async function deriveKey(
   salt: Uint8Array<ArrayBuffer>,
   iterations: number,
 ): Promise<CryptoKey> {
-  const base = await crypto.subtle.importKey(
+  const base = await subtle().importKey(
     "raw",
     new TextEncoder().encode(secret),
     "PBKDF2",
     false,
     ["deriveKey"],
   );
-  return crypto.subtle.deriveKey(
+  return subtle().deriveKey(
     { name: "PBKDF2", hash: "SHA-256", salt, iterations },
     base,
     { name: "AES-GCM", length: 256 },
@@ -73,7 +91,7 @@ async function decrypt(
   ct: string,
 ): Promise<Uint8Array | null> {
   try {
-    const plain = await crypto.subtle.decrypt(
+    const plain = await subtle().decrypt(
       { name: "AES-GCM", iv: fromBase64(iv) },
       key,
       fromBase64(ct),

@@ -44,3 +44,6 @@ editors.key
 # Tooling
 .claude/local/
 .claude/settings.local.json
+
+# Browser automation output
+.playwright-mcp/

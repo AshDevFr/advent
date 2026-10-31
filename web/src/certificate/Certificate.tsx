@@ -2,7 +2,11 @@ import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 
 import { api, type EventInfo } from "@/api";
 import { Button } from "@/components/ui/button";
-import { openFinal, type Certificate as Payload } from "@/crypto";
+import {
+  InsecureContextError,
+  openFinal,
+  type Certificate as Payload,
+} from "@/crypto";
 import { total, useEventProgress, useProgress } from "@/store";
 import { download, svgToPng } from "./exportPng";
 
@@ -33,8 +37,12 @@ function Unlock({ event, words }: { event: EventInfo; words: string[] }) {
         setError(
           "Your words do not open the certificate. One may have been stored wrongly: reopen the days and check each word.",
         );
-    } catch {
-      setError("The certificate could not be loaded.");
+    } catch (e) {
+      setError(
+        e instanceof InsecureContextError
+          ? e.message
+          : "The certificate could not be loaded.",
+      );
     }
   }
 

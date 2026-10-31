@@ -92,6 +92,20 @@ describe("door panel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("explains instead of hanging when WebCrypto is unavailable", async () => {
+    // Browsers only expose crypto.subtle on https (or localhost).
+    vi.stubGlobal("crypto", {});
+    serveDay();
+    const user = userEvent.setup();
+    render(<DoorPanel event="2026" day={2} onClose={() => {}} />);
+    await user.type(await screen.findByLabelText("Your answer"), "paris");
+    await user.click(screen.getByRole("button", { name: "Check" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "secure connection",
+    );
+    expect(screen.getByRole("button", { name: "Check" })).toBeEnabled();
+  });
+
   it("still works when localStorage throws", async () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("QuotaExceededError");
