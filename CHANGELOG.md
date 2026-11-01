@@ -2,6 +2,12 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.6.0] - 2026-11-01
+
+### Features
+
+- Balance the door grid, and let a theme choose doors per row
+
 ## [0.5.1] - 2026-10-31
 
 ### Bug Fixes
