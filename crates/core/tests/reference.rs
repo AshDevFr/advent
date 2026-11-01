@@ -91,6 +91,7 @@ fn reference_documents_theme_yaml() {
         palette: palettes(),
         background: Some(SchemeImage::One("bg.webp".into())),
         doors: Some(DoorArt::One("doors.webp".into())),
+        columns: Some(5),
     };
     assert_documented("theme-yaml.md", fields(&theme));
 }

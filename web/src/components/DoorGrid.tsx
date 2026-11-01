@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import { cn } from "@/lib/utils";
 
 export interface Door {
@@ -14,18 +16,44 @@ export interface Door {
 const label =
   "text-[11px] font-semibold tracking-wider uppercase leading-tight";
 
+/**
+ * Doors per row on wide screens: the theme's choice, or else the widest row
+ * of 4 to 6 that leaves no short last row, falling back to the one whose last
+ * row is fullest. 15 doors get 5 rows of 3 rather than 6, 6 and 3.
+ */
+export function doorColumns(count: number, columns?: number | null): number {
+  if (columns) return columns;
+  const fill = (width: number) =>
+    count % width === 0 ? 1 : (count % width) / width;
+  return [6, 5, 4].reduce((best, width) =>
+    fill(width) > fill(best) ? width : best,
+  );
+}
+
+const track = (width: number) => `repeat(${width}, minmax(0, 1fr))`;
+
 /** The calendar: one card per day. Locked doors are not interactive. */
 export function DoorGrid({
   doors,
   onOpen,
   artwork,
+  columns,
 }: {
   doors: Door[];
   onOpen: (day: number) => void;
   /** The theme's door artwork, shown on locked doors like wrapping paper;
    * the doors take the images in turn. */
   artwork?: string[];
+  /** Doors per row on wide screens, from the theme. */
+  columns?: number | null;
 }) {
+  // Narrower screens show fewer doors per row, never more than wide ones.
+  const wide = doorColumns(doors.length, columns);
+  const widths = {
+    "--cols": track(Math.min(3, wide)),
+    "--cols-md": track(Math.min(4, wide)),
+    "--cols-lg": track(wide),
+  } as CSSProperties;
   // A wash of the door colour keeps the number and date readable on top.
   // Open doors keep their picture, faded further so the door reads as opened.
   const wrapped = (day: number, wash: number) => {
@@ -45,7 +73,9 @@ export function DoorGrid({
   return (
     <ul
       aria-label="Calendar doors"
-      className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-6"
+      data-columns={wide}
+      style={widths}
+      className="grid grid-cols-(--cols) gap-2 sm:gap-3 md:grid-cols-(--cols-md) lg:grid-cols-(--cols-lg)"
     >
       {doors.map((door) => (
         <li key={door.day}>

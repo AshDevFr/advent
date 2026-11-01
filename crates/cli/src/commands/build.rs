@@ -285,6 +285,7 @@ fn build_event(
         background,
         background_dark,
         doors,
+        columns: theme.as_ref().and_then(|t| t.columns),
     };
     write_json(&site.join("event.json"), &info)?;
     Ok(info)

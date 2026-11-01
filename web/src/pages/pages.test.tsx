@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "@/App";
+import { doorColumns } from "@/components/DoorGrid";
 import { readTheme } from "@/components/ThemeToggle";
 import { useProgress } from "@/store";
 import { event, serve, site } from "@/test/fixtures";
@@ -72,6 +73,49 @@ describe("landing page", () => {
     expect(
       await screen.findByText("The calendar could not be loaded."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("door grid width", () => {
+  it("picks a row of 4 to 6 that leaves no short last row", () => {
+    expect(doorColumns(24)).toBe(6);
+    expect(doorColumns(15)).toBe(5);
+    expect(doorColumns(16)).toBe(4);
+    expect(doorColumns(12)).toBe(6);
+    expect(doorColumns(10)).toBe(5);
+  });
+
+  it("otherwise takes the width whose last row is fullest", () => {
+    expect(doorColumns(13)).toBe(5);
+    expect(doorColumns(7)).toBe(4);
+    expect(doorColumns(23)).toBe(6);
+  });
+
+  it("follows the theme when it sets a width", () => {
+    expect(doorColumns(15, 3)).toBe(3);
+    expect(doorColumns(24, 8)).toBe(8);
+  });
+
+  it("lays the calendar out at that width", async () => {
+    serve({
+      "/2026/event.json": event({
+        days: 15,
+        dates: Array.from(
+          { length: 15 },
+          (_, i) => `2026-12-${String(i + 1).padStart(2, "0")}`,
+        ),
+      }),
+      "/2027/event.json": event({ id: "2027", columns: 3 }),
+    });
+    const { unmount } = render(<App path="/2026/" />);
+    const grid = await screen.findByRole("list", { name: "Calendar doors" });
+    expect(grid).toHaveAttribute("data-columns", "5");
+    unmount();
+
+    render(<App path="/2027/" />);
+    expect(
+      await screen.findByRole("list", { name: "Calendar doors" }),
+    ).toHaveAttribute("data-columns", "3");
   });
 });
 

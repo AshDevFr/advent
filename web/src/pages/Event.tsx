@@ -167,7 +167,12 @@ export function EventPage({ id }: { id: string }) {
         <Countdown target={opensAt} />
       )}
       <KeyStrip days={event.days} words={progress.words} />
-      <DoorGrid doors={doors} onOpen={setOpenDay} artwork={event.doors} />
+      <DoorGrid
+        doors={doors}
+        onOpen={setOpenDay}
+        artwork={event.doors}
+        columns={event.columns}
+      />
       <CertificatePanel event={event} brandName={brand?.name ?? ""} />
       <Progress event={id} />
       {openDay !== null && (

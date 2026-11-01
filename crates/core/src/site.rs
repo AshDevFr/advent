@@ -68,6 +68,10 @@ pub struct EventInfo {
     /// Door artwork, in order; door N uses entry (N - 1) modulo the count.
     #[serde(default)]
     pub doors: Vec<String>,
+    /// Doors per row on wide screens, when the theme sets it; otherwise the
+    /// calendar picks one from the number of days.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub columns: Option<u8>,
 }
 
 /// A published notice. `id` derives from the text, so players who dismissed

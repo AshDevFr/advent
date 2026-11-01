@@ -550,7 +550,15 @@ pub struct Theme {
     /// Artwork shown on locked doors, next to `theme.yaml`: one file for
     /// every door, or a list that the doors take in turn.
     pub doors: Option<DoorArt>,
+    /// Doors per row on wide screens. Narrow screens use fewer, never more.
+    /// Without it the calendar picks a width that leaves no short last row
+    /// where it can.
+    pub columns: Option<u8>,
 }
+
+/// The widest grid a theme can ask for: beyond this, doors get too small
+/// to read their number and date.
+pub const MAX_COLUMNS: u8 = 12;
 
 /// An image that may differ by colour scheme: one file for both, or a file
 /// each, since a logo drawn for a light page can vanish on a dark one.
@@ -591,7 +599,16 @@ pub enum DoorArt {
 
 impl Theme {
     pub fn from_yaml(text: &str) -> Result<Self, ModelError> {
-        yaml(text)
+        let theme: Theme = yaml(text)?;
+        if let Some(columns) = theme.columns
+            && !(1..=MAX_COLUMNS).contains(&columns)
+        {
+            return Err(invalid(
+                "columns",
+                format!("{columns} is not between 1 and {MAX_COLUMNS}"),
+            ));
+        }
+        Ok(theme)
     }
 
     /// The door artwork files, in order; door N uses entry (N - 1) modulo
@@ -722,6 +739,19 @@ mod tests {
         let many = Theme::from_yaml("doors: [a.png, b.png, c.png]\n").unwrap();
         assert_eq!(many.door_files(), ["a.png", "b.png", "c.png"]);
         assert!(Theme::default().door_files().is_empty());
+    }
+
+    #[test]
+    fn model_theme_columns_are_optional_and_bounded() {
+        assert_eq!(Theme::default().columns, None);
+        assert_eq!(Theme::from_yaml("columns: 5\n").unwrap().columns, Some(5));
+        assert_eq!(Theme::from_yaml("columns: 12\n").unwrap().columns, Some(12));
+        for bad in ["0", "13", "-1", "five"] {
+            assert!(
+                Theme::from_yaml(&format!("columns: {bad}\n")).is_err(),
+                "{bad} should be refused"
+            );
+        }
     }
 
     #[test]

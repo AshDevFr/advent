@@ -39,6 +39,8 @@ export interface EventInfo {
   background_dark?: string | null;
   /** Door artwork, taken in turn: door N uses entry (N - 1) % length. */
   doors: string[];
+  /** Doors per row on wide screens, when the theme sets it. */
+  columns?: number | null;
 }
 
 export interface DayPage {

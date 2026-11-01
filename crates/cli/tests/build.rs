@@ -225,6 +225,24 @@ fn build_publishes_a_list_of_door_artwork_in_order() {
 }
 
 #[test]
+fn build_passes_the_theme_columns_on_only_when_set() {
+    let repo = sample_event();
+    let out = build(&repo, "2026-12-03", "dist");
+    let event: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("2026/event.json")).unwrap()).unwrap();
+    assert!(
+        event.get("columns").is_none(),
+        "the calendar picks one itself"
+    );
+
+    fs::write(repo.event_dir().join("theme.yaml"), "columns: 5\n").unwrap();
+    let out = build(&repo, "2026-12-03", "dist2");
+    let event: serde_json::Value =
+        serde_json::from_slice(&fs::read(out.join("2026/event.json")).unwrap()).unwrap();
+    assert_eq!(event["columns"], 5);
+}
+
+#[test]
 fn build_writes_brand_and_theme() {
     let repo = sample_event();
     fs::write(

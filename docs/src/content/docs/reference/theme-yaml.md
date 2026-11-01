@@ -45,10 +45,22 @@ An image next to `theme.yaml`, or one per scheme as for the brand's [`logo`](/re
 
 **Type** file name, or list of file names · **Optional**
 
-Artwork next to `theme.yaml`, shown on locked doors, like wrapping paper. Open and solved doors stay plain. With one file every door uses it; with a list the doors take the images in turn (door 1 the first, and back to the first after the last), so 24 images give every door its own:
+Artwork next to `theme.yaml`, shown on locked doors, like wrapping paper. Open and solved doors keep it, faded further so they read as opened. With one file every door uses it; with a list the doors take the images in turn (door 1 the first, and back to the first after the last), so 24 images give every door its own:
 
 ```yaml
 doors: [door01.png, door02.png, door03.png]
 ```
 
 The door's number and opening date sit on the artwork with a halo in the door colour; a calm picture with some empty space still reads best.
+
+### `columns`
+
+**Type** whole number from 1 to 12 · **Optional**
+
+How many doors sit in a row on a wide screen. Without it the calendar picks the widest row of 4 to 6 doors that leaves no short last row: 24 days get 6 per row, 15 get 5, 16 get 4. When no width divides evenly, it takes the one whose last row is fullest (13 days get 5, 5 and 3). Set it to choose the shape yourself:
+
+```yaml
+columns: 5
+```
+
+Smaller screens never show more: tablets show at most 4 doors per row and phones at most 3.
