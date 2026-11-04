@@ -2,6 +2,12 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.9.0] - 2026-11-04
+
+### Features
+
+- Credit the engine at the foot of every page
+
 ## [0.8.2] - 2026-11-04
 
 ### Bug Fixes
