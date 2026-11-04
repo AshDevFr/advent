@@ -100,6 +100,9 @@ One-time setup:
    example a GitLab or GitHub Pages project site), set the variable
    `ADVENT_BASE` to that path, such as `/calendar/`. Locally:
    `advent build --base /calendar/`.
+5. So that links shared on Facebook, LinkedIn or X show the calendar's
+   picture, set the variable `ADVENT_PUBLIC_URL` to the site's address, such
+   as `https://advent.example.com/`. Chat apps show it without this.
 
 Before a deploy, CI checks that no plaintext is tracked and that every day
 released so far opens; days still being written do not block it.

@@ -65,6 +65,9 @@ jobs:
           # Set the variable ADVENT_BASE (e.g. /calendar/) to serve the site
           # under a sub-path; the default is the domain root.
           ADVENT_BASE: ${{ vars.ADVENT_BASE || '/' }}
+          # Set the variable ADVENT_PUBLIC_URL (e.g. https://advent.example.com/)
+          # so link previews get full links to their pictures.
+          ADVENT_PUBLIC_URL: ${{ vars.ADVENT_PUBLIC_URL }}
 
       - name: Create the Pages project if missing
         run: |

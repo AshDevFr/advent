@@ -51,11 +51,12 @@ Print when each day opens and when its hints appear.
 
 ### `advent build`
 
-Write the static site for the current moment: released days and due hints in plain form, word locks, the sealed certificate, the brand and theme stylesheets, and the frontend. Needs `ADVENT_RELEASE_KEY`.
+Write the static site for the current moment: released days and due hints in plain form, word locks, the sealed certificate, the brand and theme stylesheets, and the frontend, with each page's title, description and picture for link previews. Needs `ADVENT_RELEASE_KEY`.
 
 - `--until <YYYY-MM-DD>`: build as of the end of that date in each event's timezone.
 - `--out <DIR>`: output folder (default `dist`). An existing folder is only replaced if a previous build wrote it.
 - `--base <PATH>`: the path the site is served under (default `/`, or `ADVENT_BASE`).
+- `--url <URL>`: the address the site is served at, such as `https://advent.example.com/` (or `ADVENT_PUBLIC_URL`). Link previews then get full links to their pictures, which Facebook, LinkedIn and X need; without it they get paths from the domain root, which chat apps such as iMessage, Slack and Discord follow.
 
 ### `advent verify [EVENT]`
 

@@ -72,6 +72,10 @@ pub struct EventInfo {
     /// calendar picks one from the number of days.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub columns: Option<u8>,
+    /// The picture for link previews, relative to the site root: the
+    /// theme's card, or else its background.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<String>,
 }
 
 /// A published notice. `id` derives from the text, so players who dismissed
@@ -258,6 +262,7 @@ mod tests {
                 light: map(light),
                 dark: map(dark),
             },
+            card: None,
         }
     }
 

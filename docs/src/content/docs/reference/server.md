@@ -37,7 +37,7 @@ Where the server listens. `--listen` overrides it.
 
 **Type** URL · **Required** to send real email
 
-The address players open the calendar at, such as `https://advent.example.com`. Sign-in links in emails start with it.
+The address players open the calendar at, such as `https://advent.example.com`. Sign-in links in emails start with it, and so do the pictures in link previews when someone shares the calendar's address.
 
 ### `data`
 

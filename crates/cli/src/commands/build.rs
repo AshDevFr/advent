@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 
 use advent_core::format::{self, Bundle, SealedDay};
-use advent_core::model::{Brand, Event, Theme};
+use advent_core::model::{Brand, Event, Theme, is_svg};
 use advent_core::primitives;
 use advent_core::schedule::{end_of_date, first_release, hints_due, is_released, notice_published};
 use advent_core::site::{
@@ -62,6 +62,10 @@ pub struct Options<'a> {
     /// guesses, and locks in the browser would allow unlimited offline
     /// guessing) and mark `site.json` so the frontend talks to the server.
     pub server: bool,
+    /// The address the site root is served at, e.g. `https://example.com/`,
+    /// so link previews get full links to their pictures. Without it they
+    /// get paths from the domain root, which some previewers do not follow.
+    pub public_url: Option<String>,
 }
 
 pub fn check_base(base: &str) -> anyhow::Result<()> {
@@ -73,8 +77,29 @@ pub fn check_base(base: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn run(until: Option<NaiveDate>, out: &Path, base: &str) -> anyhow::Result<()> {
+/// A site address for link previews: http(s), and nothing that could break
+/// out of an HTML attribute.
+pub fn check_public_url(url: &str) -> anyhow::Result<()> {
+    if !(url.starts_with("https://") || url.starts_with("http://"))
+        || url.contains(['"', '<', '>', ' ', '\'', '&'])
+    {
+        bail!("the site address must be a URL such as https://example.com/ (got {url:?})");
+    }
+    Ok(())
+}
+
+pub fn run(
+    until: Option<NaiveDate>,
+    out: &Path,
+    base: &str,
+    public_url: Option<&str>,
+) -> anyhow::Result<()> {
     check_base(base)?;
+    // An unset CI variable arrives as an empty string.
+    let public_url = public_url.filter(|u| !u.is_empty());
+    if let Some(url) = public_url {
+        check_public_url(url)?;
+    }
     let root = find_repo_root(Path::new("."))?;
     load_repo_config(&root)?;
     let options = Options {
@@ -84,6 +109,7 @@ pub fn run(until: Option<NaiveDate>, out: &Path, base: &str) -> anyhow::Result<(
         skip_unsealed: false,
         head_html: None,
         server: false,
+        public_url: public_url.map(str::to_owned),
     };
     let index = build_site(&root, out, &options)?;
     println!(
@@ -129,6 +155,7 @@ pub fn build_site(root: &Path, out: &Path, options: &Options) -> anyhow::Result<
     let logo_image = brand.as_ref().and_then(|b| b.logo.as_ref());
     let logo = brand_asset(logo_image.map(|l| l.light()))?;
     let logo_dark = brand_asset(logo_image.and_then(|l| l.dark()))?;
+    let brand_card = brand_asset(brand.as_ref().and_then(|b| b.card.as_deref()))?;
     let mut site_css = theme_css(brand.as_ref(), None)?;
 
     let mut events = Vec::new();
@@ -145,11 +172,45 @@ pub fn build_site(root: &Path, out: &Path, options: &Options) -> anyhow::Result<
     }
     fs::write(out.join("theme.css"), site_css)?;
 
+    let brand_name = brand
+        .as_ref()
+        .map_or("Advent calendar".to_string(), |b| b.name.clone());
+    let heading = |e: &EventInfo| e.headline.clone().unwrap_or_else(|| e.title.clone());
+    let headings: Vec<String> = events.iter().map(heading).collect();
+    let link = Link {
+        base,
+        public_url: options.public_url.as_deref(),
+    };
+    write_preview(
+        &out.join("index.html"),
+        &Preview {
+            title: &brand_name,
+            site_name: &brand_name,
+            description: (!headings.is_empty()).then(|| headings.join(" · ")),
+            image: brand_card
+                .as_deref()
+                .or_else(|| events.iter().find_map(|e| e.card.as_deref())),
+            path: "",
+        },
+        &link,
+    )?;
+    for (event, title) in events.iter().zip(&headings) {
+        write_preview(
+            &out.join(&event.id).join("index.html"),
+            &Preview {
+                title,
+                site_name: &brand_name,
+                description: event.intro.clone(),
+                image: event.card.as_deref(),
+                path: &format!("{}/", event.id),
+            },
+            &link,
+        )?;
+    }
+
     let index = SiteIndex {
         brand: SiteBrand {
-            name: brand
-                .as_ref()
-                .map_or("Advent calendar".into(), |b| b.name.clone()),
+            name: brand_name,
             logo,
             logo_dark,
         },
@@ -196,6 +257,12 @@ fn build_event(
     for file in theme.as_ref().map(Theme::door_files).unwrap_or_default() {
         doors.extend(decoration(Some(file))?);
     }
+    // Link previews show the card, or else the background, unless that is
+    // an SVG, which they do not display.
+    let card = match theme.as_ref().and_then(|t| t.card.as_deref()) {
+        Some(file) => decoration(Some(file))?,
+        None => background.clone().filter(|path| !is_svg(path)),
+    };
 
     let mut released = Vec::new();
     let mut types = std::collections::BTreeMap::new();
@@ -286,6 +353,7 @@ fn build_event(
         background_dark,
         doors,
         columns: theme.as_ref().and_then(|t| t.columns),
+        card,
     };
     write_json(&site.join("event.json"), &info)?;
     Ok(info)
@@ -387,6 +455,91 @@ fn prepare_out(out: &Path) -> anyhow::Result<()> {
     }
     fs::create_dir_all(out)?;
     fs::write(out.join(MARKER), "")?;
+    Ok(())
+}
+
+/// What a page shows in link previews (chat apps, social networks), which
+/// read the HTML without running the frontend.
+struct Preview<'a> {
+    title: &'a str,
+    site_name: &'a str,
+    description: Option<String>,
+    /// The picture, as a path from the site root.
+    image: Option<&'a str>,
+    /// The page, as a path from the site root.
+    path: &'a str,
+}
+
+/// How a path from the site root becomes a link in a preview.
+struct Link<'a> {
+    base: &'a str,
+    public_url: Option<&'a str>,
+}
+
+impl Link<'_> {
+    fn to(&self, path: &str) -> String {
+        match self.public_url {
+            Some(url) => format!("{}/{path}", url.trim_end_matches('/')),
+            None => format!("{}{path}", self.base),
+        }
+    }
+}
+
+fn escape_html(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
+/// Set a page's `<title>` and add the Open Graph and Twitter tags previews
+/// read.
+fn write_preview(page: &Path, preview: &Preview, link: &Link) -> anyhow::Result<()> {
+    let html = fs::read_to_string(page)?;
+    let (Some(start), Some(end)) = (html.find("<title>"), html.find("</title>")) else {
+        bail!("{} has no <title> to replace", page.display());
+    };
+    let title = escape_html(preview.title);
+    let mut tags = format!(
+        "<title>{title}</title>\n    \
+         <meta property=\"og:type\" content=\"website\" />\n    \
+         <meta property=\"og:site_name\" content=\"{}\" />\n    \
+         <meta property=\"og:title\" content=\"{title}\" />",
+        escape_html(preview.site_name),
+    );
+    if let Some(description) = &preview.description {
+        let description = escape_html(description);
+        tags.push_str(&format!(
+            "\n    <meta name=\"description\" content=\"{description}\" />\
+             \n    <meta property=\"og:description\" content=\"{description}\" />"
+        ));
+    }
+    if link.public_url.is_some() {
+        tags.push_str(&format!(
+            "\n    <meta property=\"og:url\" content=\"{}\" />",
+            escape_html(&link.to(preview.path))
+        ));
+    }
+    let card = match preview.image {
+        Some(image) => {
+            tags.push_str(&format!(
+                "\n    <meta property=\"og:image\" content=\"{}\" />",
+                escape_html(&link.to(image))
+            ));
+            "summary_large_image"
+        }
+        None => "summary",
+    };
+    tags.push_str(&format!(
+        "\n    <meta name=\"twitter:card\" content=\"{card}\" />"
+    ));
+    let html = format!(
+        "{}{tags}{}",
+        &html[..start],
+        &html[end + "</title>".len()..]
+    );
+    fs::write(page, html)?;
     Ok(())
 }
 

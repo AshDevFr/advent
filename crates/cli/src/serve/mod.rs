@@ -133,7 +133,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     let mailer = mail::Sender::new(&config.mail)?;
 
     content::validate(&root, &identities)?;
-    let content = content::load(&root, &identities, clock.now())?;
+    let content = content::load(&root, &identities, clock.now(), config.public_url.clone())?;
     let store = SqliteStore::open(&config.data.join("advent.db"))?;
     let setup_code = setup_code(&config, &store)?;
     let oidc = oidc::Oidc::new(&config.admin.oidc, &config.link_base())?;
@@ -261,7 +261,11 @@ async fn regenerate(state: Arc<AppState>, root: PathBuf, identities: Vec<x25519:
         // otherwise, which is what the log is for.
         loop {
             let (root, identities, now) = (root.clone(), identities.clone(), state.clock.now());
-            match tokio::task::spawn_blocking(move || content::load(&root, &identities, now)).await
+            let public_url = state.config.public_url.clone();
+            match tokio::task::spawn_blocking(move || {
+                content::load(&root, &identities, now, public_url)
+            })
+            .await
             {
                 Ok(Ok(fresh)) => {
                     *state.content.write().unwrap_or_else(|e| e.into_inner()) = Arc::new(fresh);

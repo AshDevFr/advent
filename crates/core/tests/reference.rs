@@ -81,6 +81,7 @@ fn reference_documents_brand_yaml() {
         name: "n".into(),
         logo: Some(SchemeImage::One("logo.svg".into())),
         palette: palettes(),
+        card: Some("card.jpg".into()),
     };
     assert_documented("brand-yaml.md", fields(&brand));
 }
@@ -92,6 +93,7 @@ fn reference_documents_theme_yaml() {
         background: Some(SchemeImage::One("bg.webp".into())),
         doors: Some(DoorArt::One("doors.webp".into())),
         columns: Some(5),
+        card: Some("card.jpg".into()),
     };
     assert_documented("theme-yaml.md", fields(&theme));
 }

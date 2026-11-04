@@ -52,3 +52,11 @@ Colours when the page is light. Missing keys keep the engine defaults.
 **Type** map of palette key to CSS colour · **Optional** · Under `palette`
 
 Colours when the page is dark (system setting or the player's choice). Missing keys keep the engine's dark defaults.
+
+### `card`
+
+**Type** file name · **Optional**
+
+The landing page's picture in link previews, when someone shares the calendar's address in a chat app or on a social network. An image next to `brand.yaml`, ideally 1200 by 630 pixels, in PNG, JPEG or WebP: previews do not show SVG, so an SVG is refused. Without it the landing page uses the first event's picture (see the theme's [`card`](/reference/theme-yaml/#card)).
+
+Previews also show the brand name and the events' headlines. For full links to the picture, which some networks need, build with the site's address: see [`advent build --url`](/reference/cli/#advent-build).

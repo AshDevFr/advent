@@ -509,6 +509,8 @@ pub struct Brand {
     pub logo: Option<SchemeImage>,
     #[serde(default)]
     pub palette: Palettes,
+    /// The landing page's picture in link previews, next to `brand.yaml`.
+    pub card: Option<String>,
 }
 
 /// Colour tokens for each scheme. The site follows the player's system
@@ -534,7 +536,9 @@ impl Palettes {
 
 impl Brand {
     pub fn from_yaml(text: &str) -> Result<Self, ModelError> {
-        yaml(text)
+        let brand: Brand = yaml(text)?;
+        check_card(brand.card.as_deref())?;
+        Ok(brand)
     }
 }
 
@@ -554,6 +558,26 @@ pub struct Theme {
     /// Without it the calendar picks a width that leaves no short last row
     /// where it can.
     pub columns: Option<u8>,
+    /// This event's picture in link previews, next to `theme.yaml`. Without
+    /// it, previews use the background.
+    pub card: Option<String>,
+}
+
+/// Link previews (chat apps, social networks) do not show SVG, so a card
+/// must be a raster image.
+fn check_card(card: Option<&str>) -> Result<(), ModelError> {
+    match card {
+        Some(file) if is_svg(file) => Err(invalid(
+            "card",
+            format!("{file} is an SVG; link previews need a PNG, JPEG or WebP"),
+        )),
+        _ => Ok(()),
+    }
+}
+
+/// Whether a file name is an SVG, which link previews do not show.
+pub fn is_svg(file: &str) -> bool {
+    file.to_ascii_lowercase().ends_with(".svg")
 }
 
 /// The widest grid a theme can ask for: beyond this, doors get too small
@@ -600,6 +624,7 @@ pub enum DoorArt {
 impl Theme {
     pub fn from_yaml(text: &str) -> Result<Self, ModelError> {
         let theme: Theme = yaml(text)?;
+        check_card(theme.card.as_deref())?;
         if let Some(columns) = theme.columns
             && !(1..=MAX_COLUMNS).contains(&columns)
         {
@@ -755,6 +780,26 @@ mod tests {
     }
 
     #[test]
+    fn model_cards_must_be_raster_images() {
+        assert_eq!(
+            Theme::from_yaml("card: card.jpg\n")
+                .unwrap()
+                .card
+                .as_deref(),
+            Some("card.jpg")
+        );
+        assert_eq!(
+            Brand::from_yaml("name: A\ncard: card.png\n")
+                .unwrap()
+                .card
+                .as_deref(),
+            Some("card.png")
+        );
+        assert!(Theme::from_yaml("card: card.SVG\n").is_err());
+        assert!(Brand::from_yaml("name: A\ncard: card.svg\n").is_err());
+    }
+
+    #[test]
     fn model_theme_cannot_set_name_or_logo() {
         assert!(
             Theme::from_yaml("intro: x\n").is_err(),
@@ -780,6 +825,7 @@ mod tests {
                 light: map(&[("primary", "#05a")]),
                 dark: map(&[("primary", "#8cf")]),
             },
+            card: None,
         };
         let theme = Theme {
             palette: Palettes {

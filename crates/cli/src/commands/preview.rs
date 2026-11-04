@@ -54,6 +54,8 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         skip_unsealed: true,
         head_html,
         server: false,
+        // Served at whatever address the machine has, so links stay paths.
+        public_url: None,
     };
 
     if let Some(out) = &args.out {

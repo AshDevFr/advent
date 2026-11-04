@@ -65,6 +65,10 @@ enum Command {
         /// project path (default: the domain root).
         #[arg(long, env = "ADVENT_BASE", default_value = "/")]
         base: String,
+        /// The address the site is served at, e.g. https://example.com/, so
+        /// link previews get full links to their pictures.
+        #[arg(long, env = "ADVENT_PUBLIC_URL")]
+        url: Option<String>,
     },
     /// Preview the calendar on this machine with the editors key, including
     /// days not released yet; served on 127.0.0.1 unless --host says otherwise.
@@ -148,7 +152,12 @@ fn main() -> anyhow::Result<()> {
         Command::Keeper {
             command: KeeperCommand::Seal { event },
         } => commands::keeper::run(&event),
-        Command::Build { until, out, base } => commands::build::run(until, &out, &base),
+        Command::Build {
+            until,
+            out,
+            base,
+            url,
+        } => commands::build::run(until, &out, &base, url.as_deref()),
         Command::Preview {
             until,
             all_open,

@@ -25,6 +25,7 @@ Rerunning it is harmless: the output depends only on the date.
 | `CLOUDFLARE_ACCOUNT_ID` | secret | your Cloudflare account id |
 | `CLOUDFLARE_PAGES_PROJECT` | variable | Pages project name |
 | `ADVENT_BASE` | variable | optional sub-path, such as `/calendar/` |
+| `ADVENT_PUBLIC_URL` | variable | optional, the site's address (such as `https://advent.example.com/`), for full links in link previews |
 | `ADVENT_ENGINE_REPO` | variable | optional, to download the engine from a fork |
 
 The cron times are in UTC. If your event is elsewhere, shift them so a run lands just after your local midnight in both summer and winter time; extra runs do no harm.

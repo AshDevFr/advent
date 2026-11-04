@@ -64,3 +64,11 @@ columns: 5
 ```
 
 Smaller screens never show more: tablets show at most 4 doors per row and phones at most 3.
+
+### `card`
+
+**Type** file name · **Optional**
+
+This event's picture in link previews, when someone shares its address in a chat app or on a social network. An image next to `theme.yaml`, ideally 1200 by 630 pixels, in PNG, JPEG or WebP: previews do not show SVG, so an SVG is refused. Without it the preview uses the [`background`](#background), unless that is an SVG.
+
+The preview's title is the story's headline (or the event title) and its text is the story's intro.

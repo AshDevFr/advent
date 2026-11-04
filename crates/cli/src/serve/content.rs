@@ -39,6 +39,7 @@ fn options(
     identities: &[x25519::Identity],
     moment: Moment,
     skip_unsealed: bool,
+    public_url: Option<String>,
 ) -> Options<'static> {
     Options {
         moment,
@@ -49,6 +50,7 @@ fn options(
         // without waiting for a request.
         head_html: Some(r#"<meta name="advent-mode" content="server">"#.into()),
         server: true,
+        public_url,
     }
 }
 
@@ -60,7 +62,7 @@ pub fn validate(root: &Path, identities: &[x25519::Identity]) -> anyhow::Result<
     build::build_site(
         root,
         &dir.path().join("site"),
-        &options(identities, Moment::AllOpen, true),
+        &options(identities, Moment::AllOpen, true, None),
     )
     .context("the event does not open with ADVENT_RELEASE_KEY")?;
     load_events(root)?;
@@ -72,10 +74,15 @@ pub fn load(
     root: &Path,
     identities: &[x25519::Identity],
     now: DateTime<Utc>,
+    public_url: Option<String>,
 ) -> anyhow::Result<Content> {
     let dir = tempfile::Builder::new().prefix("advent-serve-").tempdir()?;
     let site = dir.path().join("site");
-    let index = build::build_site(root, &site, &options(identities, Moment::At(now), false))?;
+    let index = build::build_site(
+        root,
+        &site,
+        &options(identities, Moment::At(now), false, public_url),
+    )?;
     let events = load_events(root)?;
     let brand_file = root.join("brand/brand.yaml");
     let brand = if brand_file.is_file() {

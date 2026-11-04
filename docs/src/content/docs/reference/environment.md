@@ -17,6 +17,10 @@ The editors private key, instead of the `editors.key` file. Several keys may be 
 
 The path the site is served under, as `--base` for `advent build`. Default `/`.
 
+### `ADVENT_PUBLIC_URL`
+
+The address the site is served at, as `--url` for `advent build`, so link previews get full links to their pictures. Empty means unset. `advent serve` reads it as its [`public_url`](/reference/server/#public_url) setting.
+
 ### `ADVENT_ENGINE`
 
 Overrides `engine` from `advent.yaml`.

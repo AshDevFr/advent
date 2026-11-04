@@ -242,6 +242,103 @@ fn build_passes_the_theme_columns_on_only_when_set() {
     assert_eq!(event["columns"], 5);
 }
 
+/// The content of a `<meta>` tag in a page, by its `property` or `name`.
+fn meta(page: &str, key: &str) -> Option<String> {
+    let start = page
+        .find(&format!(r#"property="{key}" content=""#))
+        .or_else(|| page.find(&format!(r#"name="{key}" content=""#)))?;
+    let rest = &page[start..];
+    let rest = &rest[rest.find("content=\"")? + 9..];
+    Some(rest[..rest.find('"')?].to_string())
+}
+
+#[test]
+fn build_writes_link_preview_tags_into_each_page() {
+    let repo = sample_event();
+    let event_yaml = repo.event_dir().join("event.yaml");
+    let text = fs::read_to_string(&event_yaml).unwrap().replace(
+        "# title: \"The Longest Night Hunt\"",
+        "title: \"Doors & \\\"Keys\\\" <24>\"",
+    );
+    fs::write(&event_yaml, text).unwrap();
+    fs::copy(
+        repo.root.join("examples/day06/hidden.png"),
+        repo.event_dir().join("card.png"),
+    )
+    .unwrap();
+    fs::write(repo.event_dir().join("theme.yaml"), "card: card.png\n").unwrap();
+
+    let out = build(&repo, "2026-12-03", "dist");
+    let page = fs::read_to_string(out.join("2026/index.html")).unwrap();
+    assert!(page.contains("<title>Doors &amp; &quot;Keys&quot; &lt;24&gt;</title>"));
+    assert_eq!(
+        meta(&page, "og:title").unwrap(),
+        "Doors &amp; &quot;Keys&quot; &lt;24&gt;"
+    );
+    assert_eq!(meta(&page, "og:site_name").unwrap(), "Advent Calendar");
+    assert!(
+        meta(&page, "og:description")
+            .unwrap()
+            .starts_with("One door a day.")
+    );
+    assert_eq!(meta(&page, "description"), meta(&page, "og:description"));
+    // Without the site's address, the picture is a path from the domain root.
+    assert_eq!(meta(&page, "og:image").unwrap(), "/2026/theme/card.png");
+    assert_eq!(meta(&page, "twitter:card").unwrap(), "summary_large_image");
+    assert_eq!(meta(&page, "og:url"), None);
+    assert!(out.join("2026/theme/card.png").is_file());
+
+    // The landing page names the brand and borrows the event's picture.
+    let root = fs::read_to_string(out.join("index.html")).unwrap();
+    assert!(root.contains("<title>Advent Calendar</title>"));
+    assert_eq!(meta(&root, "og:image").unwrap(), "/2026/theme/card.png");
+    assert_eq!(
+        meta(&root, "og:description").unwrap(),
+        "Doors &amp; &quot;Keys&quot; &lt;24&gt;"
+    );
+}
+
+#[test]
+fn build_links_preview_pictures_in_full_when_given_the_site_address() {
+    let repo = sample_event();
+    fs::copy(
+        repo.root.join("examples/day06/hidden.png"),
+        repo.event_dir().join("night.png"),
+    )
+    .unwrap();
+    fs::write(
+        repo.event_dir().join("theme.yaml"),
+        "background: night.png\n",
+    )
+    .unwrap();
+    repo.advent()
+        .args(["build", "--until", "2026-12-03", "--base", "/cal/"])
+        .env("ADVENT_RELEASE_KEY", &repo.release_secret)
+        .env("ADVENT_PUBLIC_URL", "https://example.com/cal/")
+        .assert()
+        .success();
+    let page = fs::read_to_string(repo.root.join("dist/2026/index.html")).unwrap();
+    // The background stands in for a card.
+    assert_eq!(
+        meta(&page, "og:image").unwrap(),
+        "https://example.com/cal/2026/theme/night.png"
+    );
+    assert_eq!(
+        meta(&page, "og:url").unwrap(),
+        "https://example.com/cal/2026/"
+    );
+}
+
+#[test]
+fn build_writes_a_text_preview_when_there_is_no_picture() {
+    let repo = sample_event();
+    let out = build(&repo, "2026-12-03", "dist");
+    let page = fs::read_to_string(out.join("2026/index.html")).unwrap();
+    assert!(page.contains("<title>Advent 2026</title>"));
+    assert_eq!(meta(&page, "og:image"), None);
+    assert_eq!(meta(&page, "twitter:card").unwrap(), "summary");
+}
+
 #[test]
 fn build_writes_brand_and_theme() {
     let repo = sample_event();
