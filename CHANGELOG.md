@@ -2,6 +2,12 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.8.2] - 2026-11-04
+
+### Bug Fixes
+
+- Keep a framed certificate light on a dark page
+
 ## [0.8.1] - 2026-11-04
 
 ### Bug Fixes
