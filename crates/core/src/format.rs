@@ -114,6 +114,10 @@ pub struct Certificate {
     /// WebP background image, when the keeper provided one.
     #[serde(default, with = "b64_opt", skip_serializing_if = "Option::is_none")]
     pub background: Option<Vec<u8>>,
+    /// Several WebP backgrounds for the player to choose from, in place of
+    /// `background`.
+    #[serde(default, with = "b64_vec", skip_serializing_if = "Vec::is_empty")]
+    pub backgrounds: Vec<Vec<u8>>,
     /// Whether the background is faded under the page colour; left out
     /// when it is, so certificates sealed before the option read the same.
     #[serde(
@@ -296,6 +300,27 @@ mod b64_opt {
                     .map_err(serde::de::Error::custom)
             })
             .transpose()
+    }
+}
+
+mod b64_vec {
+    use base64::Engine;
+    use base64::engine::general_purpose::STANDARD;
+    use serde::{Deserialize, Deserializer, Serializer, ser::SerializeSeq};
+
+    pub fn serialize<S: Serializer>(list: &[Vec<u8>], s: S) -> Result<S::Ok, S::Error> {
+        let mut seq = s.serialize_seq(Some(list.len()))?;
+        for bytes in list {
+            seq.serialize_element(&STANDARD.encode(bytes))?;
+        }
+        seq.end()
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<Vec<u8>>, D::Error> {
+        Vec::<String>::deserialize(d)?
+            .into_iter()
+            .map(|text| STANDARD.decode(text).map_err(serde::de::Error::custom))
+            .collect()
     }
 }
 

@@ -1,4 +1,11 @@
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type Ref,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
 import { api, type EventInfo } from "@/api";
 import { client, useEventProgress } from "@/client";
@@ -176,17 +183,18 @@ async function logoAsPng(path: string, size = 160): Promise<string | null> {
 }
 
 /**
- * Print the certificate alone on an A4 landscape page. The page size can
- * only be set for a whole document, so it is added just for this print.
+ * Print the certificate alone, landscape on whatever paper the printer
+ * has: one page, or one per background. The page settings can only be set
+ * for a whole document, so they are added just for this print.
  */
-function printCertificate() {
+function printCertificate(which: "one" | "all") {
   const page = document.createElement("style");
-  page.textContent = "@page { size: A4 landscape; margin: 0; }";
+  page.textContent = "@page { size: landscape; margin: 0; }";
   document.head.append(page);
-  document.documentElement.classList.add("printing-certificate");
+  document.documentElement.dataset.printing = which;
   const done = () => {
     page.remove();
-    document.documentElement.classList.remove("printing-certificate");
+    delete document.documentElement.dataset.printing;
     window.removeEventListener("afterprint", done);
   };
   window.addEventListener("afterprint", done);
@@ -206,6 +214,11 @@ export function CertificateView({
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [logo, setLogo] = useState<string | null>(null);
+  const backgrounds =
+    payload.backgrounds ?? (payload.background ? [payload.background] : []);
+  const [chosen, setChosen] = useState(0);
+  // Safe inside url(#...): React's ids contain colons.
+  const uid = `cert${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
 
   useEffect(() => {
     api
@@ -253,8 +266,7 @@ export function CertificateView({
 
   // A frame leaves the middle empty, so it needs neither the wash nor a
   // border of our own.
-  const framed =
-    payload.background !== undefined && payload.background_wash === false;
+  const framed = backgrounds.length > 0 && payload.background_wash === false;
 
   async function exportImage() {
     if (svgRef.current) {
@@ -266,165 +278,254 @@ export function CertificateView({
     }
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      {/* The print stylesheet shows only this, filling an A4 landscape page. */}
-      <div data-print>
-        <svg
-          ref={svgRef}
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 1200 850"
-          role="img"
-          aria-label={`Certificate for ${name}: ${payload.title}`}
-          // Web fonts do not load inside an exported SVG image; the stack
-          // falls back to a system serif there.
-          fontFamily="'Fraunces Variable', Georgia, serif"
-          className="h-auto w-full rounded-md border"
-        >
-          <rect width="1200" height="850" fill={colours.surface} />
-          {payload.background && (
-            <>
-              <image
-                href={`data:image/webp;base64,${payload.background}`}
-                width="1200"
-                height="850"
-                preserveAspectRatio="xMidYMid slice"
-              />
-              {/* A wash of the page colour keeps the text readable. */}
-              {!framed && (
-                <rect
-                  width="1200"
-                  height="850"
-                  fill={colours.surface}
-                  opacity="0.8"
-                />
-              )}
-            </>
-          )}
+  // Drawn once for the screen, and once per background for Print all.
+  // On a frame, a halo of the page colour around every line of text keeps
+  // it readable where it crosses the artwork.
+  const halo = framed
+    ? {
+        stroke: colours.surface,
+        strokeWidth: 7,
+        strokeLinejoin: "round" as const,
+        paintOrder: "stroke",
+      }
+    : {};
+  const draw = (
+    background: string | undefined,
+    copy: string,
+    ref?: Ref<SVGSVGElement>,
+  ) => (
+    <svg
+      ref={ref}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 1200 850"
+      role="img"
+      aria-label={`Certificate for ${name}: ${payload.title}`}
+      // Web fonts do not load inside an exported SVG image; the stack
+      // falls back to a system serif there.
+      fontFamily="'Fraunces Variable', Georgia, serif"
+      className="h-auto w-full rounded-md border"
+    >
+      <rect width="1200" height="850" fill={colours.surface} />
+      {background && (
+        <>
+          <image
+            href={`data:image/webp;base64,${background}`}
+            width="1200"
+            height="850"
+            preserveAspectRatio="xMidYMid slice"
+          />
+          {/* A wash of the page colour keeps the text readable. */}
           {!framed && (
             <rect
-              x="30"
-              y="30"
-              width="1140"
-              height="790"
-              fill="none"
-              stroke={colours.primary}
-              strokeWidth="6"
-              rx="24"
+              width="1200"
+              height="850"
+              fill={colours.surface}
+              opacity="0.8"
             />
           )}
-          {imageOnTop ? (
-            <image
-              href={`data:image/webp;base64,${payload.image}`}
-              x="500"
-              y="60"
-              width="200"
-              height="100"
-              preserveAspectRatio="xMidYMid meet"
-            />
-          ) : (
-            logo && <image href={logo} x="560" y="70" width="80" height="80" />
-          )}
-          <text
-            x="600"
-            y="200"
-            textAnchor="middle"
-            fontSize="28"
-            fill={colours.muted}
-          >
-            {brandName}
-          </text>
-          {title.map(({ line, y }) => (
-            <text
-              key={y}
-              x="600"
-              y={y}
-              textAnchor="middle"
-              fontSize="56"
-              fontWeight="700"
-              fill={colours.primary}
-            >
-              {line}
-            </text>
-          ))}
-          <line
-            x1="540"
-            x2="660"
-            y1={dividerY}
-            y2={dividerY}
-            stroke={colours.primary}
-            strokeWidth="2"
+        </>
+      )}
+      {framed && (
+        <>
+          {/* The middle fades into the page colour, so the text sits on
+              calm paper while the frame stays whole around it. */}
+          <defs>
+            <radialGradient id={`${uid}-glow-${copy}`}>
+              <stop offset="0" stopColor={colours.surface} stopOpacity="0.9" />
+              <stop
+                offset="0.65"
+                stopColor={colours.surface}
+                stopOpacity="0.7"
+              />
+              <stop offset="1" stopColor={colours.surface} stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <ellipse
+            data-glow=""
+            cx="600"
+            cy="430"
+            rx="560"
+            ry="440"
+            fill={`url(#${uid}-glow-${copy})`}
           />
-          {subtitleY && (
-            <text
-              x="600"
-              y={subtitleY}
-              textAnchor="middle"
-              fontSize="26"
-              fontStyle="italic"
-              fill={colours.muted}
-            >
-              {payload.subtitle}
-            </text>
-          )}
-          <text
-            x="600"
-            y={nameY}
-            textAnchor="middle"
-            fontSize="44"
-            fill={colours.text}
-          >
-            {name}
-          </text>
-          {message.map(({ line, y }) => (
-            <text
-              key={y}
-              x="600"
-              y={y}
-              textAnchor="middle"
-              fontSize="28"
-              fill={colours.text}
-            >
-              {line}
-            </text>
-          ))}
-          {payload.image && !imageOnTop && (
-            <image
-              href={`data:image/webp;base64,${payload.image}`}
-              x="500"
-              y={imageY}
-              width="200"
-              height="120"
-              preserveAspectRatio="xMidYMid meet"
-            />
-          )}
-          {payload.signature && (
-            <text
-              x="600"
-              y="745"
-              textAnchor="middle"
-              fontSize="26"
-              fontStyle="italic"
-              fill={colours.text}
-            >
-              {payload.signature}
-            </text>
-          )}
-          <text
-            x="600"
-            y="790"
-            textAnchor="middle"
-            fontSize="24"
-            fill={colours.accent}
-          >
-            {edition}
-          </text>
-        </svg>
-      </div>
+        </>
+      )}
+      {!framed && (
+        <rect
+          x="30"
+          y="30"
+          width="1140"
+          height="790"
+          fill="none"
+          stroke={colours.primary}
+          strokeWidth="6"
+          rx="24"
+        />
+      )}
+      {imageOnTop ? (
+        <image
+          href={`data:image/webp;base64,${payload.image}`}
+          x="500"
+          y="60"
+          width="200"
+          height="100"
+          preserveAspectRatio="xMidYMid meet"
+        />
+      ) : (
+        logo && <image href={logo} x="560" y="70" width="80" height="80" />
+      )}
+      <text
+        {...halo}
+        x="600"
+        y="200"
+        textAnchor="middle"
+        fontSize="28"
+        fill={colours.muted}
+      >
+        {brandName}
+      </text>
+      {title.map(({ line, y }) => (
+        <text
+          {...halo}
+          key={y}
+          x="600"
+          y={y}
+          textAnchor="middle"
+          fontSize="56"
+          fontWeight="700"
+          fill={colours.primary}
+        >
+          {line}
+        </text>
+      ))}
+      <line
+        x1="540"
+        x2="660"
+        y1={dividerY}
+        y2={dividerY}
+        stroke={colours.primary}
+        strokeWidth="2"
+      />
+      {subtitleY && (
+        <text
+          {...halo}
+          x="600"
+          y={subtitleY}
+          textAnchor="middle"
+          fontSize="26"
+          fontStyle="italic"
+          fill={colours.muted}
+        >
+          {payload.subtitle}
+        </text>
+      )}
+      <text
+        {...halo}
+        x="600"
+        y={nameY}
+        textAnchor="middle"
+        fontSize="44"
+        fill={colours.text}
+      >
+        {name}
+      </text>
+      {message.map(({ line, y }) => (
+        <text
+          {...halo}
+          key={y}
+          x="600"
+          y={y}
+          textAnchor="middle"
+          fontSize="28"
+          fill={colours.text}
+        >
+          {line}
+        </text>
+      ))}
+      {payload.image && !imageOnTop && (
+        <image
+          href={`data:image/webp;base64,${payload.image}`}
+          x="500"
+          y={imageY}
+          width="200"
+          height="120"
+          preserveAspectRatio="xMidYMid meet"
+        />
+      )}
+      {payload.signature && (
+        <text
+          {...halo}
+          x="600"
+          y="745"
+          textAnchor="middle"
+          fontSize="26"
+          fontStyle="italic"
+          fill={colours.text}
+        >
+          {payload.signature}
+        </text>
+      )}
+      <text
+        {...halo}
+        x="600"
+        y="790"
+        textAnchor="middle"
+        fontSize="24"
+        fill={colours.accent}
+      >
+        {edition}
+      </text>
+    </svg>
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* The print stylesheet shows only this, filling the page. */}
+      <div data-print="one">{draw(backgrounds[chosen], "screen", svgRef)}</div>
+      {backgrounds.length > 1 && (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">Background:</span>
+            {backgrounds.map((background, i) => (
+              <button
+                // biome-ignore lint/suspicious/noArrayIndexKey: the list never changes
+                key={i}
+                type="button"
+                aria-label={`Background ${i + 1}`}
+                aria-pressed={i === chosen}
+                onClick={() => setChosen(i)}
+                className="overflow-hidden rounded-md border-2 border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:border-primary"
+              >
+                <img
+                  src={`data:image/webp;base64,${background}`}
+                  alt=""
+                  className="h-12 w-17 object-cover"
+                />
+              </button>
+            ))}
+          </div>
+          {/* Printed by Print all, one page each; never shown on screen. */}
+          <div data-print="all" aria-hidden="true">
+            {backgrounds.map((background, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: the list never changes
+              <div key={i}>{draw(background, `page${i}`)}</div>
+            ))}
+          </div>
+        </>
+      )}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" onClick={printCertificate}>
+        <Button type="button" onClick={() => printCertificate("one")}>
           Print
         </Button>
+        {backgrounds.length > 1 && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => printCertificate("all")}
+          >
+            Print all
+          </Button>
+        )}
         <Button type="button" variant="outline" onClick={exportImage}>
           Download as PNG
         </Button>

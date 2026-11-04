@@ -455,8 +455,9 @@ pub struct FinalPayload {
     pub subtitle: Option<String>,
     /// A sign-off above the footer.
     pub signature: Option<String>,
-    /// Optional image file shown behind the whole certificate.
-    pub background: Option<String>,
+    /// Optional image shown behind the whole certificate, or a list for
+    /// the player to choose from (and print every one of).
+    pub background: Option<Backgrounds>,
     /// Fade the background under the page colour so text stays readable
     /// (the default). Off for artwork that leaves the middle empty, such as
     /// a decorated frame, which should show at full strength.
@@ -466,6 +467,23 @@ pub struct FinalPayload {
     /// only once the certificate is unlocked.
     #[serde(default)]
     pub rewards: Vec<RewardSpec>,
+}
+
+/// One certificate background, or several to choose from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Backgrounds {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl Backgrounds {
+    pub fn files(&self) -> Vec<&str> {
+        match self {
+            Backgrounds::One(file) => vec![file.as_str()],
+            Backgrounds::Many(files) => files.iter().map(String::as_str).collect(),
+        }
+    }
 }
 
 fn yes() -> bool {
@@ -505,6 +523,13 @@ impl FinalPayload {
                     format!("{:?} needs exactly one of `file` or `url`", reward.label),
                 ));
             }
+        }
+        if payload
+            .background
+            .as_ref()
+            .is_some_and(|b| b.files().is_empty())
+        {
+            return Err(invalid("background", "the list of backgrounds is empty"));
         }
         Ok(payload)
     }

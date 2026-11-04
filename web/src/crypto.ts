@@ -32,6 +32,8 @@ export interface Certificate {
   subtitle?: string;
   signature?: string;
   background?: string;
+  /** Several backgrounds to choose from, in place of `background`. */
+  backgrounds?: string[];
   /** False for a frame shown at full strength; washed when absent. */
   background_wash?: boolean;
   rewards?: Reward[];

@@ -56,9 +56,18 @@ A sign-off above the footer, such as "The Holiday Committee".
 
 ### `background`
 
-**Type** file name · **Optional**
+**Type** file name, or list of file names · **Optional**
 
-An image next to `final.yaml` shown behind the whole certificate, under a translucent wash of the page colour so the text stays readable. Converted to WebP when sealing; a soft texture works better than a busy photo. The certificate is 1200 by 850 (A4 landscape), so an image of that shape fills it without cropping.
+An image next to `final.yaml` shown behind the whole certificate, under a translucent wash of the page colour so the text stays readable. Converted to WebP when sealing; a soft texture works better than a busy photo. The certificate is 1200 by 850 (close to A4 and US Letter landscape), so an image of that shape fills it without cropping.
+
+With a list, the player picks the one they like under the certificate, and **Print all** prints one page per background:
+
+```yaml
+background: [holly.jpg, snowmen.jpg, garland.jpg]
+background_wash: false
+```
+
+Each one adds its size to the sealed certificate, which players download whole, so keep them to a few hundred kilobytes each.
 
 ### `background_wash`
 

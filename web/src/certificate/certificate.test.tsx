@@ -157,12 +157,19 @@ describe("certificate frame and print", () => {
     const svg = view();
     expect(svg.querySelector('rect[opacity="0.8"]')).not.toBeNull();
     expect(svg.querySelector("rect[stroke]")).not.toBeNull();
+    expect(svg.querySelector("ellipse[data-glow]")).toBeNull();
   });
 
   it("shows a frame at full strength, without its own border", () => {
     const svg = view({ background_wash: false });
     expect(svg.querySelector('rect[opacity="0.8"]')).toBeNull();
     expect(svg.querySelector("rect[stroke]")).toBeNull();
+    // The middle fades to the page colour and every line of text has a
+    // halo, so it reads on any frame without hiding it.
+    expect(svg.querySelector("ellipse[data-glow]")).not.toBeNull();
+    for (const text of svg.querySelectorAll("text")) {
+      expect(text).toHaveAttribute("paint-order", "stroke");
+    }
   });
 
   it("prints the certificate on its own page", async () => {
@@ -172,15 +179,84 @@ describe("certificate frame and print", () => {
     await userEvent.click(screen.getByRole("button", { name: "Print" }));
     expect(print).toHaveBeenCalledOnce();
     // Only while the dialog is open: the page prints as usual afterwards.
-    expect(document.documentElement).toHaveClass("printing-certificate");
+    expect(document.documentElement.dataset.printing).toBe("one");
     window.dispatchEvent(new Event("afterprint"));
-    expect(document.documentElement).not.toHaveClass("printing-certificate");
+    expect(document.documentElement.dataset.printing).toBeUndefined();
     // The print stylesheet shows only what carries this marker.
     expect(
       screen
         .getByRole("img", { name: /^Certificate for Ada/ })
-        .closest("[data-print]"),
+        .closest(`[data-print="one"]`),
     ).not.toBeNull();
+  });
+});
+
+describe("several backgrounds", () => {
+  const payload = {
+    title: "Well done",
+    message: "Every word.",
+    backgrounds: ["AAAA", "BBBB"],
+    background_wash: false,
+  };
+  const hrefs = (svg: Element) =>
+    [...svg.querySelectorAll("image")].map((i) => i.getAttribute("href"));
+
+  it("lets the player pick the background", async () => {
+    render(
+      <CertificateView
+        event={threeDays}
+        brandName="Acme"
+        name="Ada"
+        payload={payload}
+      />,
+    );
+    const svg = screen.getByRole("img", { name: /^Certificate for Ada/ });
+    expect(hrefs(svg)).toContain("data:image/webp;base64,AAAA");
+    const second = screen.getByRole("button", { name: "Background 2" });
+    expect(second).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(second);
+    expect(second).toHaveAttribute("aria-pressed", "true");
+    expect(hrefs(svg)).toContain("data:image/webp;base64,BBBB");
+    expect(hrefs(svg)).not.toContain("data:image/webp;base64,AAAA");
+  });
+
+  it("prints one page per background", async () => {
+    const print = vi.fn();
+    vi.stubGlobal("print", print);
+    const { container } = render(
+      <CertificateView
+        event={threeDays}
+        brandName="Acme"
+        name="Ada"
+        payload={payload}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Print all" }));
+    expect(print).toHaveBeenCalledOnce();
+    expect(document.documentElement.dataset.printing).toBe("all");
+    const pages = container.querySelectorAll('[data-print="all"] svg');
+    expect([...pages].map((page) => hrefs(page)[0])).toEqual([
+      "data:image/webp;base64,AAAA",
+      "data:image/webp;base64,BBBB",
+    ]);
+    window.dispatchEvent(new Event("afterprint"));
+  });
+
+  it("offers no choice for a single background", () => {
+    render(
+      <CertificateView
+        event={threeDays}
+        brandName="Acme"
+        name="Ada"
+        payload={{
+          title: "Well done",
+          message: "Every word.",
+          background: "AAAA",
+        }}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Background 1" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Print all" })).toBeNull();
   });
 });
 

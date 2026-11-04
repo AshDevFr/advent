@@ -115,6 +115,35 @@ fn keeper_seals_every_certificate_option() {
 }
 
 #[test]
+fn keeper_seals_several_backgrounds_to_choose_from() {
+    let repo = short_event(None);
+    let final_dir = repo.event_dir().join("final");
+    for name in ["holly.png", "snowmen.png"] {
+        fs::copy(
+            common::examples().join("day06/hidden.png"),
+            final_dir.join(name),
+        )
+        .unwrap();
+    }
+    fs::write(
+        final_dir.join("final.yaml"),
+        "title: Well done\nmessage: You found every word.\nbackground: [holly.png, snowmen.png]\n",
+    )
+    .unwrap();
+    repo.advent()
+        .args(["keeper", "seal", "2026"])
+        .assert()
+        .success();
+
+    let certificate = open_certificate(&repo, &WORDS).unwrap();
+    assert_eq!(certificate.background, None, "a choice is not a single one");
+    assert_eq!(certificate.backgrounds.len(), 2);
+    for image in &certificate.backgrounds {
+        assert_eq!(&image[..4], b"RIFF", "converted to WebP");
+    }
+}
+
+#[test]
 fn keeper_rejects_an_unknown_image_position() {
     let repo = short_event(None);
     fs::write(

@@ -111,31 +111,51 @@
   }
 }
 
-/* The certificate's Print button marks the page while the print dialog is
-   open: only the certificate is laid out, filling the page (an A4
-   landscape one, set by the button) in its own colours. Printing any other
-   way prints the page as usual. */
+/* The certificate's Print buttons mark the page while the print dialog is
+   open (data-printing="one" or "all"): only that certificate is laid out,
+   one page each, landscape on whatever paper is in the printer (set by
+   the button) and in its own colours. Printing any other way prints the
+   page as usual. */
+[data-print="all"] {
+  display: none;
+}
+
 @media print {
-  .printing-certificate
+  [data-printing="one"]
     body
-    :not([data-print], [data-print] *, :has([data-print])) {
+    :not([data-print="one"], [data-print="one"] *, :has([data-print="one"])),
+  [data-printing="all"]
+    body
+    :not([data-print="all"], [data-print="all"] *, :has([data-print="all"])) {
     display: none;
   }
 
-  .printing-certificate [data-print] {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  /* What holds the certificate must not add space around it. */
+  [data-printing] :has([data-print]) {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    gap: 0;
+    max-width: none;
+  }
+
+  [data-printing="all"] [data-print="all"] {
+    display: block;
+  }
+
+  [data-printing] [data-print] svg {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    border-radius: 0;
+    break-after: page;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
 
-  .printing-certificate [data-print] svg {
-    width: 100%;
-    height: 100%;
-    border: 0;
-    border-radius: 0;
+  [data-printing] [data-print] > :last-child svg,
+  [data-printing] [data-print] > svg:last-child {
+    break-after: auto;
   }
 }

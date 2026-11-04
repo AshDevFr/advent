@@ -9,8 +9,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use advent_core::model::{
-    Attempts, Brand, DayMeta, DoorArt, Event, FinalPayload, Hint, ImagePosition, Keys, Notice,
-    Palettes, RepoConfig, RewardSpec, SchemeImage, Story, Theme,
+    Attempts, Backgrounds, Brand, DayMeta, DoorArt, Event, FinalPayload, Hint, ImagePosition, Keys,
+    Notice, Palettes, RepoConfig, RewardSpec, SchemeImage, Story, Theme,
 };
 use serde::Serialize;
 
@@ -151,7 +151,7 @@ fn reference_documents_final_yaml() {
         image_position: ImagePosition::Top,
         subtitle: Some("s".into()),
         signature: Some("g".into()),
-        background: Some("b.png".into()),
+        background: Some(Backgrounds::One("b.png".into())),
         background_wash: false,
         rewards: vec![RewardSpec {
             label: "l".into(),

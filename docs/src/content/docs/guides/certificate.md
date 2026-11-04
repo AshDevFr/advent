@@ -48,8 +48,8 @@ Files are encrypted one by one and only downloaded when the player asks for them
 advent preview --all-open --solved
 ```
 
-opens the calendar on your machine with every word already collected: type any name in the certificate panel to see the real certificate and download the PNG.
+opens the calendar on your machine with every word already collected: type any name in the certificate panel to see the real certificate, print it or download the PNG.
 
 ## What players get
 
-When every word is collected, the player enters a name and the certificate opens in the browser. It shows your brand, the player's name, the edition and its year, and can be downloaded as a PNG. It does not show hints used or attempts: those live in the player's browser and could be reset, so they would prove nothing.
+When every word is collected, the player enters a name and the certificate opens in the browser. It shows your brand, the player's name, the edition and its year. **Print** prints it alone, landscape on whatever paper is in the printer (the print dialog can also save it as a PDF), and it can be downloaded as a PNG sharp enough to print. With several [backgrounds](/reference/final-yaml/#background) the player picks one, and **Print all** prints one page per background. It does not show hints used or attempts: those live in the player's browser and could be reset, so they would prove nothing.

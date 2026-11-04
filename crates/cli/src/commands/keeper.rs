@@ -167,10 +167,26 @@ pub fn seal_final(
         });
     }
 
+    // One background is stored as before; several become a choice.
+    let mut backgrounds = Vec::new();
+    for file in payload
+        .background
+        .as_ref()
+        .map(|b| b.files())
+        .unwrap_or_default()
+    {
+        backgrounds.extend(webp(&Some(file.to_string()))?);
+    }
+    let background = if backgrounds.len() == 1 {
+        backgrounds.pop()
+    } else {
+        None
+    };
     let certificate = Certificate {
         rewards,
         image: webp(&payload.image)?,
-        background: webp(&payload.background)?,
+        background,
+        backgrounds,
         background_wash: payload.background_wash,
         title: payload.title,
         message: payload.message,
