@@ -152,6 +152,7 @@ fn reference_documents_final_yaml() {
         subtitle: Some("s".into()),
         signature: Some("g".into()),
         background: Some("b.png".into()),
+        background_wash: false,
         rewards: vec![RewardSpec {
             label: "l".into(),
             file: Some("f.zip".into()),

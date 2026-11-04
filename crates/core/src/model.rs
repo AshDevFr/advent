@@ -457,10 +457,19 @@ pub struct FinalPayload {
     pub signature: Option<String>,
     /// Optional image file shown behind the whole certificate.
     pub background: Option<String>,
+    /// Fade the background under the page colour so text stays readable
+    /// (the default). Off for artwork that leaves the middle empty, such as
+    /// a decorated frame, which should show at full strength.
+    #[serde(default = "yes")]
+    pub background_wash: bool,
     /// What else finishing gives: files to download and links, revealed
     /// only once the certificate is unlocked.
     #[serde(default)]
     pub rewards: Vec<RewardSpec>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 /// One reward in `final.yaml`: a file next to it, or a link.

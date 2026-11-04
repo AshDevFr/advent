@@ -56,6 +56,8 @@ fn open_certificate(repo: &Repo, words: &[&str]) -> Option<Certificate> {
 
 #[test]
 fn keeper_seals_the_certificate_with_the_words_in_order() {
+    // Without the option, a background is washed so text stays readable.
+    assert!(advent_core::format::Certificate::default_wash());
     let repo = short_event(None);
     repo.advent()
         .args(["keeper", "seal", "2026"])
@@ -82,7 +84,7 @@ fn keeper_seals_every_certificate_option() {
     }
     fs::write(
         final_dir.join("final.yaml"),
-        "title: Well done\nmessage: You found every word.\nsubtitle: is hereby recognised for\nsignature: The Holiday Committee\nimage: medal.png\nimage_position: top\nbackground: paper.png\n",
+        "title: Well done\nmessage: You found every word.\nsubtitle: is hereby recognised for\nsignature: The Holiday Committee\nimage: medal.png\nimage_position: top\nbackground: paper.png\nbackground_wash: false\n",
     )
     .unwrap();
     repo.advent()
@@ -102,6 +104,10 @@ fn keeper_seals_every_certificate_option() {
     assert_eq!(
         certificate.image_position,
         advent_core::model::ImagePosition::Top
+    );
+    assert!(
+        !certificate.background_wash,
+        "the frame is shown at full strength"
     );
     for image in [certificate.image.unwrap(), certificate.background.unwrap()] {
         assert_eq!(&image[..4], b"RIFF", "converted to WebP");

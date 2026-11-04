@@ -110,3 +110,32 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* The certificate's Print button marks the page while the print dialog is
+   open: only the certificate is laid out, filling the page (an A4
+   landscape one, set by the button) in its own colours. Printing any other
+   way prints the page as usual. */
+@media print {
+  .printing-certificate
+    body
+    :not([data-print], [data-print] *, :has([data-print])) {
+    display: none;
+  }
+
+  .printing-certificate [data-print] {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .printing-certificate [data-print] svg {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+}

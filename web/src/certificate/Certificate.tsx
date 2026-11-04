@@ -175,6 +175,24 @@ async function logoAsPng(path: string, size = 160): Promise<string | null> {
   }
 }
 
+/**
+ * Print the certificate alone on an A4 landscape page. The page size can
+ * only be set for a whole document, so it is added just for this print.
+ */
+function printCertificate() {
+  const page = document.createElement("style");
+  page.textContent = "@page { size: A4 landscape; margin: 0; }";
+  document.head.append(page);
+  document.documentElement.classList.add("printing-certificate");
+  const done = () => {
+    page.remove();
+    document.documentElement.classList.remove("printing-certificate");
+    window.removeEventListener("afterprint", done);
+  };
+  window.addEventListener("afterprint", done);
+  window.print();
+}
+
 export function CertificateView({
   event,
   brandName,
@@ -233,163 +251,184 @@ export function CertificateView({
     payload.signature ? 590 : 630,
   );
 
+  // A frame leaves the middle empty, so it needs neither the wash nor a
+  // border of our own.
+  const framed =
+    payload.background !== undefined && payload.background_wash === false;
+
   async function exportImage() {
     if (svgRef.current) {
-      download(await svgToPng(svgRef.current), `${event.id}-certificate.png`);
+      // 3x: about 300 dpi on an A4 page, sharp enough to print.
+      download(
+        await svgToPng(svgRef.current, 3),
+        `${event.id}-certificate.png`,
+      );
     }
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <svg
-        ref={svgRef}
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 1200 850"
-        role="img"
-        aria-label={`Certificate for ${name}: ${payload.title}`}
-        // Web fonts do not load inside an exported SVG image; the stack
-        // falls back to a system serif there.
-        fontFamily="'Fraunces Variable', Georgia, serif"
-        className="h-auto w-full rounded-md border"
-      >
-        <rect width="1200" height="850" fill={colours.surface} />
-        {payload.background && (
-          <>
-            <image
-              href={`data:image/webp;base64,${payload.background}`}
-              width="1200"
-              height="850"
-              preserveAspectRatio="xMidYMid slice"
-            />
-            {/* A wash of the page colour keeps the text readable. */}
+      {/* The print stylesheet shows only this, filling an A4 landscape page. */}
+      <div data-print>
+        <svg
+          ref={svgRef}
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 1200 850"
+          role="img"
+          aria-label={`Certificate for ${name}: ${payload.title}`}
+          // Web fonts do not load inside an exported SVG image; the stack
+          // falls back to a system serif there.
+          fontFamily="'Fraunces Variable', Georgia, serif"
+          className="h-auto w-full rounded-md border"
+        >
+          <rect width="1200" height="850" fill={colours.surface} />
+          {payload.background && (
+            <>
+              <image
+                href={`data:image/webp;base64,${payload.background}`}
+                width="1200"
+                height="850"
+                preserveAspectRatio="xMidYMid slice"
+              />
+              {/* A wash of the page colour keeps the text readable. */}
+              {!framed && (
+                <rect
+                  width="1200"
+                  height="850"
+                  fill={colours.surface}
+                  opacity="0.8"
+                />
+              )}
+            </>
+          )}
+          {!framed && (
             <rect
-              width="1200"
-              height="850"
-              fill={colours.surface}
-              opacity="0.8"
+              x="30"
+              y="30"
+              width="1140"
+              height="790"
+              fill="none"
+              stroke={colours.primary}
+              strokeWidth="6"
+              rx="24"
             />
-          </>
-        )}
-        <rect
-          x="30"
-          y="30"
-          width="1140"
-          height="790"
-          fill="none"
-          stroke={colours.primary}
-          strokeWidth="6"
-          rx="24"
-        />
-        {imageOnTop ? (
-          <image
-            href={`data:image/webp;base64,${payload.image}`}
-            x="500"
-            y="60"
-            width="200"
-            height="100"
-            preserveAspectRatio="xMidYMid meet"
-          />
-        ) : (
-          logo && <image href={logo} x="560" y="70" width="80" height="80" />
-        )}
-        <text
-          x="600"
-          y="200"
-          textAnchor="middle"
-          fontSize="28"
-          fill={colours.muted}
-        >
-          {brandName}
-        </text>
-        {title.map(({ line, y }) => (
-          <text
-            key={y}
-            x="600"
-            y={y}
-            textAnchor="middle"
-            fontSize="56"
-            fontWeight="700"
-            fill={colours.primary}
-          >
-            {line}
-          </text>
-        ))}
-        <line
-          x1="540"
-          x2="660"
-          y1={dividerY}
-          y2={dividerY}
-          stroke={colours.primary}
-          strokeWidth="2"
-        />
-        {subtitleY && (
+          )}
+          {imageOnTop ? (
+            <image
+              href={`data:image/webp;base64,${payload.image}`}
+              x="500"
+              y="60"
+              width="200"
+              height="100"
+              preserveAspectRatio="xMidYMid meet"
+            />
+          ) : (
+            logo && <image href={logo} x="560" y="70" width="80" height="80" />
+          )}
           <text
             x="600"
-            y={subtitleY}
-            textAnchor="middle"
-            fontSize="26"
-            fontStyle="italic"
-            fill={colours.muted}
-          >
-            {payload.subtitle}
-          </text>
-        )}
-        <text
-          x="600"
-          y={nameY}
-          textAnchor="middle"
-          fontSize="44"
-          fill={colours.text}
-        >
-          {name}
-        </text>
-        {message.map(({ line, y }) => (
-          <text
-            key={y}
-            x="600"
-            y={y}
+            y="200"
             textAnchor="middle"
             fontSize="28"
-            fill={colours.text}
+            fill={colours.muted}
           >
-            {line}
+            {brandName}
           </text>
-        ))}
-        {payload.image && !imageOnTop && (
-          <image
-            href={`data:image/webp;base64,${payload.image}`}
-            x="500"
-            y={imageY}
-            width="200"
-            height="120"
-            preserveAspectRatio="xMidYMid meet"
+          {title.map(({ line, y }) => (
+            <text
+              key={y}
+              x="600"
+              y={y}
+              textAnchor="middle"
+              fontSize="56"
+              fontWeight="700"
+              fill={colours.primary}
+            >
+              {line}
+            </text>
+          ))}
+          <line
+            x1="540"
+            x2="660"
+            y1={dividerY}
+            y2={dividerY}
+            stroke={colours.primary}
+            strokeWidth="2"
           />
-        )}
-        {payload.signature && (
+          {subtitleY && (
+            <text
+              x="600"
+              y={subtitleY}
+              textAnchor="middle"
+              fontSize="26"
+              fontStyle="italic"
+              fill={colours.muted}
+            >
+              {payload.subtitle}
+            </text>
+          )}
           <text
             x="600"
-            y="745"
+            y={nameY}
             textAnchor="middle"
-            fontSize="26"
-            fontStyle="italic"
+            fontSize="44"
             fill={colours.text}
           >
-            {payload.signature}
+            {name}
           </text>
-        )}
-        <text
-          x="600"
-          y="790"
-          textAnchor="middle"
-          fontSize="24"
-          fill={colours.accent}
-        >
-          {edition}
-        </text>
-      </svg>
-      <Button type="button" onClick={exportImage} className="self-start">
-        Download as PNG
-      </Button>
+          {message.map(({ line, y }) => (
+            <text
+              key={y}
+              x="600"
+              y={y}
+              textAnchor="middle"
+              fontSize="28"
+              fill={colours.text}
+            >
+              {line}
+            </text>
+          ))}
+          {payload.image && !imageOnTop && (
+            <image
+              href={`data:image/webp;base64,${payload.image}`}
+              x="500"
+              y={imageY}
+              width="200"
+              height="120"
+              preserveAspectRatio="xMidYMid meet"
+            />
+          )}
+          {payload.signature && (
+            <text
+              x="600"
+              y="745"
+              textAnchor="middle"
+              fontSize="26"
+              fontStyle="italic"
+              fill={colours.text}
+            >
+              {payload.signature}
+            </text>
+          )}
+          <text
+            x="600"
+            y="790"
+            textAnchor="middle"
+            fontSize="24"
+            fill={colours.accent}
+          >
+            {edition}
+          </text>
+        </svg>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" onClick={printCertificate}>
+          Print
+        </Button>
+        <Button type="button" variant="outline" onClick={exportImage}>
+          Download as PNG
+        </Button>
+      </div>
     </div>
   );
 }

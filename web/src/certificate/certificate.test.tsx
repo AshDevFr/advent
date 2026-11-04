@@ -137,6 +137,53 @@ describe("certificate options", () => {
   });
 });
 
+describe("certificate frame and print", () => {
+  const payload = {
+    title: "Well done",
+    message: "Every word.",
+    background: "UklGRg==",
+  };
+  const view = (over = {}) =>
+    render(
+      <CertificateView
+        event={threeDays}
+        brandName="Acme"
+        name="Ada"
+        payload={{ ...payload, ...over }}
+      />,
+    ).container.querySelector("svg") as SVGSVGElement;
+
+  it("washes the background and draws a border by default", () => {
+    const svg = view();
+    expect(svg.querySelector('rect[opacity="0.8"]')).not.toBeNull();
+    expect(svg.querySelector("rect[stroke]")).not.toBeNull();
+  });
+
+  it("shows a frame at full strength, without its own border", () => {
+    const svg = view({ background_wash: false });
+    expect(svg.querySelector('rect[opacity="0.8"]')).toBeNull();
+    expect(svg.querySelector("rect[stroke]")).toBeNull();
+  });
+
+  it("prints the certificate on its own page", async () => {
+    const print = vi.fn();
+    vi.stubGlobal("print", print);
+    view();
+    await userEvent.click(screen.getByRole("button", { name: "Print" }));
+    expect(print).toHaveBeenCalledOnce();
+    // Only while the dialog is open: the page prints as usual afterwards.
+    expect(document.documentElement).toHaveClass("printing-certificate");
+    window.dispatchEvent(new Event("afterprint"));
+    expect(document.documentElement).not.toHaveClass("printing-certificate");
+    // The print stylesheet shows only what carries this marker.
+    expect(
+      screen
+        .getByRole("img", { name: /^Certificate for Ada/ })
+        .closest("[data-print]"),
+    ).not.toBeNull();
+  });
+});
+
 describe("rewards", () => {
   it("lists links and decrypts a file on demand", async () => {
     const bytes = new TextEncoder().encode("wallpaper bytes");

@@ -58,7 +58,13 @@ A sign-off above the footer, such as "The Holiday Committee".
 
 **Type** file name · **Optional**
 
-An image next to `final.yaml` shown behind the whole certificate, under a translucent wash of the page colour so the text stays readable. Converted to WebP when sealing; a soft texture works better than a busy photo.
+An image next to `final.yaml` shown behind the whole certificate, under a translucent wash of the page colour so the text stays readable. Converted to WebP when sealing; a soft texture works better than a busy photo. The certificate is 1200 by 850 (A4 landscape), so an image of that shape fills it without cropping.
+
+### `background_wash`
+
+**Type** `true` or `false` · **Default** `true`
+
+Whether the background is faded under the page colour. Set it to `false` for artwork that leaves the middle empty, such as a decorated frame around a plain centre: it then shows at full strength, and the certificate's own border is left out. The title, name and message sit in the middle, roughly the central 900 by 650.
 
 ### `rewards`
 

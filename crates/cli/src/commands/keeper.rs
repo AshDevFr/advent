@@ -171,6 +171,7 @@ pub fn seal_final(
         rewards,
         image: webp(&payload.image)?,
         background: webp(&payload.background)?,
+        background_wash: payload.background_wash,
         title: payload.title,
         message: payload.message,
         image_position: payload.image_position,

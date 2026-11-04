@@ -114,8 +114,25 @@ pub struct Certificate {
     /// WebP background image, when the keeper provided one.
     #[serde(default, with = "b64_opt", skip_serializing_if = "Option::is_none")]
     pub background: Option<Vec<u8>>,
+    /// Whether the background is faded under the page colour; left out
+    /// when it is, so certificates sealed before the option read the same.
+    #[serde(
+        default = "Certificate::default_wash",
+        skip_serializing_if = "Certificate::is_default_wash"
+    )]
+    pub background_wash: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rewards: Vec<Reward>,
+}
+
+impl Certificate {
+    pub fn default_wash() -> bool {
+        true
+    }
+
+    fn is_default_wash(wash: &bool) -> bool {
+        *wash == Self::default_wash()
+    }
 }
 
 /// A reward revealed with the certificate.
