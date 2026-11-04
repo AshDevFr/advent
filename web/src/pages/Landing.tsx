@@ -9,7 +9,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useThemeCss } from "@/useThemeCss";
 
-/** `/`: who runs the calendar, its events, and a countdown to the next. */
+/** `/`: who runs the calendar, its events, a countdown to each one not
+ * open yet, and a link to every calendar. */
 export function Landing() {
   useThemeCss(themeCssUrl());
   const [site, setSite] = useState<SiteIndex | null>(null);
@@ -92,16 +93,18 @@ export function Landing() {
             {event.intro && (
               <p className="text-muted-foreground">{event.intro}</p>
             )}
-            {upcoming && opensAt ? (
-              <Countdown target={opensAt} />
-            ) : (
-              <a
-                href={`${event.id}/`}
-                className={buttonVariants({ className: "self-start" })}
-              >
-                Open the calendar
-              </a>
-            )}
+            {upcoming && opensAt && <Countdown target={opensAt} />}
+            {/* The calendar page is public before it opens too: locked
+                doors with their dates, and its own countdown. */}
+            <a
+              href={`${event.id}/`}
+              className={buttonVariants({
+                variant: upcoming ? "outline" : "default",
+                className: "self-start",
+              })}
+            >
+              {upcoming ? "Take a look" : "Open the calendar"}
+            </a>
           </section>
         );
       })}

@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe("landing page", () => {
-  it("shows an upcoming event with a countdown", async () => {
+  it("shows an upcoming event with a countdown and a way in", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-30T12:00:00Z"));
     serve({
@@ -32,9 +32,15 @@ describe("landing page", () => {
     expect(
       screen.getByLabelText("Opens in 0 days, 12 hours and 0 minutes"),
     ).toBeInTheDocument();
+    // Nothing is open yet, but the calendar page is public: its locked
+    // doors and their dates are worth a look.
     expect(
       screen.queryByRole("link", { name: "Open the calendar" }),
     ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Take a look" })).toHaveAttribute(
+      "href",
+      "2026/",
+    );
   });
 
   it("links to an event that has opened", async () => {
