@@ -2,6 +2,12 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.7.0] - 2026-11-04
+
+### Features
+
+- Give each page a title, description and picture for link previews
+
 ## [0.6.0] - 2026-11-01
 
 ### Features
