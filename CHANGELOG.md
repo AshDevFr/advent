@@ -2,6 +2,13 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.8.0] - 2026-11-04
+
+### Features
+
+- Print the certificate, and let a frame show at full strength
+- Let players pick a certificate background and print every one
+
 ## [0.7.1] - 2026-11-04
 
 ### Bug Fixes
