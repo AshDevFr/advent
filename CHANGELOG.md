@@ -2,6 +2,12 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.8.1] - 2026-11-04
+
+### Bug Fixes
+
+- Fill the printed page on A4 and US Letter, and calm the text area
+
 ## [0.8.0] - 2026-11-04
 
 ### Features
