@@ -346,3 +346,32 @@ describe("branding on the calendar", () => {
     expect(screen.queryByTestId("backdrop")).toBeNull();
   });
 });
+
+describe("built with advent", () => {
+  it("credits the engine, with its version, on the landing page", async () => {
+    serve({ "/site.json": site([event()]) });
+    render(<App path="/" />);
+
+    const credit = await screen.findByRole("contentinfo");
+    expect(credit).toHaveTextContent(`Built with Advent ${__ADVENT_VERSION__}`);
+    expect(
+      within(credit).getByRole("link", { name: "Advent" }),
+    ).toHaveAttribute("href", "https://github.com/AshDevFr/advent");
+    expect(
+      within(credit).getByRole("link", { name: "Build your own" }),
+    ).toHaveAttribute(
+      "href",
+      "https://advent-engine.4sh.dev/start/introduction/",
+    );
+  });
+
+  it("credits the engine on each calendar", async () => {
+    serve({ "/2026/event.json": event() });
+    render(<App path="/2026/" />);
+
+    await screen.findByRole("list", { name: "Calendar doors" });
+    expect(screen.getByRole("contentinfo")).toHaveTextContent(
+      "Built with Advent",
+    );
+  });
+});

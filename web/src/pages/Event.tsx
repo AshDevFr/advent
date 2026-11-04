@@ -11,6 +11,7 @@ import { CertificatePanel } from "@/certificate/Certificate";
 import { client, useEventProgress } from "@/client";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Countdown } from "@/components/Countdown";
+import { Credit } from "@/components/Credit";
 import { type Door, DoorGrid } from "@/components/DoorGrid";
 import { KeyStrip } from "@/components/KeyStrip";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -183,6 +184,7 @@ export function EventPage({ id }: { id: string }) {
           onClose={() => closeDoor(openDay)}
         />
       )}
+      <Credit />
     </main>
   );
 }

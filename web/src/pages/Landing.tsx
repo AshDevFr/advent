@@ -4,6 +4,7 @@ import { api, type SiteIndex, themeCssUrl } from "@/api";
 import { BrowserTab } from "@/BrowserTab";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Countdown } from "@/components/Countdown";
+import { Credit } from "@/components/Credit";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -108,6 +109,7 @@ export function Landing() {
           </section>
         );
       })}
+      <Credit />
     </main>
   );
 }

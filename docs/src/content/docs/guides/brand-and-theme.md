@@ -13,6 +13,8 @@ Two layers restyle the calendar without touching code. Each defines a **light** 
 
 A key left out of a layer keeps the one below, for that scheme only.
 
+Every page ends with a small "Built with Advent" line in the muted text colour, naming the engine version and linking to these docs so players can make their own. Neither layer changes it.
+
 ```yaml
 # brand/brand.yaml
 name: Northwind
