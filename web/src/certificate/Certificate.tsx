@@ -192,9 +192,16 @@ function printCertificate(which: "one" | "all") {
   page.textContent = "@page { size: landscape; margin: 0; }";
   document.head.append(page);
   document.documentElement.dataset.printing = which;
+  // US Letter is squarer than the certificate and A4 a little longer: fill
+  // the page and trim the frame's outer edge rather than leave white bands.
+  const pages = document.querySelectorAll(`[data-print="${which}"] svg`);
+  for (const svg of pages) {
+    svg.setAttribute("preserveAspectRatio", "xMidYMid slice");
+  }
   const done = () => {
     page.remove();
     delete document.documentElement.dataset.printing;
+    for (const svg of pages) svg.removeAttribute("preserveAspectRatio");
     window.removeEventListener("afterprint", done);
   };
   window.addEventListener("afterprint", done);
@@ -331,11 +338,11 @@ export function CertificateView({
               calm paper while the frame stays whole around it. */}
           <defs>
             <radialGradient id={`${uid}-glow-${copy}`}>
-              <stop offset="0" stopColor={colours.surface} stopOpacity="0.9" />
+              <stop offset="0" stopColor={colours.surface} stopOpacity="0.95" />
               <stop
                 offset="0.65"
                 stopColor={colours.surface}
-                stopOpacity="0.7"
+                stopOpacity="0.88"
               />
               <stop offset="1" stopColor={colours.surface} stopOpacity="0" />
             </radialGradient>

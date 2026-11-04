@@ -180,8 +180,13 @@ describe("certificate frame and print", () => {
     expect(print).toHaveBeenCalledOnce();
     // Only while the dialog is open: the page prints as usual afterwards.
     expect(document.documentElement.dataset.printing).toBe("one");
+    // Filling the page, whatever its shape (A4 or US Letter): the sides
+    // are trimmed rather than leaving bands above and below.
+    const printed = document.querySelector('[data-print="one"] svg');
+    expect(printed).toHaveAttribute("preserveAspectRatio", "xMidYMid slice");
     window.dispatchEvent(new Event("afterprint"));
     expect(document.documentElement.dataset.printing).toBeUndefined();
+    expect(printed).not.toHaveAttribute("preserveAspectRatio");
     // The print stylesheet shows only what carries this marker.
     expect(
       screen
