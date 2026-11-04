@@ -2,6 +2,12 @@
 
 All notable changes to advent will be documented in this file.
 
+## [0.7.1] - 2026-11-04
+
+### Bug Fixes
+
+- Link every calendar from the landing page, even before it opens
+
 ## [0.7.0] - 2026-11-04
 
 ### Features
