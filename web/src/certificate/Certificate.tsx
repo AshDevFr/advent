@@ -123,12 +123,33 @@ export function CertificatePanel({
   );
 }
 
-/** Read the live theme so the exported image matches what is on screen. */
-function themeColour(name: string, fallback: string): string {
-  const value = getComputedStyle(document.documentElement)
-    .getPropertyValue(`--${name}`)
-    .trim();
-  return value || fallback;
+/**
+ * Read the live theme so the exported image matches what is on screen, or
+ * its light colours whatever the page shows. Those exist only as the light
+ * scheme's stylesheet rules, so the page is switched to light just long
+ * enough to read them: nothing is painted in between.
+ */
+function themeColours(light: boolean) {
+  const root = document.documentElement;
+  const choice = root.dataset.theme;
+  if (light) root.dataset.theme = "light";
+  try {
+    const style = getComputedStyle(root);
+    const read = (name: string, fallback: string) =>
+      style.getPropertyValue(`--${name}`).trim() || fallback;
+    return {
+      surface: read("surface", "#fffaf3"),
+      text: read("text", "#1f1b16"),
+      muted: read("text-muted", "#5c544b"),
+      primary: read("primary", "#b3261e"),
+      accent: read("accent", "#2e7d32"),
+    };
+  } finally {
+    if (light) {
+      if (choice === undefined) delete root.dataset.theme;
+      else root.dataset.theme = choice;
+    }
+  }
 }
 
 /** Split text into lines of at most `width` characters, on word boundaries. */
@@ -224,6 +245,9 @@ export function CertificateView({
   const backgrounds =
     payload.backgrounds ?? (payload.background ? [payload.background] : []);
   const [chosen, setChosen] = useState(0);
+  // A frame leaves the middle empty, so it needs neither the wash nor a
+  // border of our own.
+  const framed = backgrounds.length > 0 && payload.background_wash === false;
   // Safe inside url(#...): React's ids contain colons.
   const uid = `cert${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
 
@@ -231,22 +255,20 @@ export function CertificateView({
     api
       .site()
       .then(async (site) => {
-        // The certificate takes the page's colours, so it takes the logo
-        // drawn for them too.
+        // The certificate takes the page's colours (light ones on a
+        // frame), so it takes the logo drawn for them too.
         const file =
-          (pageIsDark() && site.brand.logo_dark) || site.brand.logo || null;
+          (!framed && pageIsDark() && site.brand.logo_dark) ||
+          site.brand.logo ||
+          null;
         setLogo(file ? await logoAsPng(file) : null);
       })
       .catch(() => {});
-  }, []);
+  }, [framed]);
 
-  const colours = {
-    surface: themeColour("surface", "#fffaf3"),
-    text: themeColour("text", "#1f1b16"),
-    muted: themeColour("text-muted", "#5c544b"),
-    primary: themeColour("primary", "#b3261e"),
-    accent: themeColour("accent", "#2e7d32"),
-  };
+  // A frame is light artwork, so a framed certificate keeps its light
+  // colours on a dark page; otherwise it takes the page's.
+  const colours = themeColours(framed);
   // Only the year: progress stats live in localStorage and can be reset,
   // so they would prove nothing on a certificate.
   const year = event.start.slice(0, 4);
@@ -270,10 +292,6 @@ export function CertificateView({
     (message[message.length - 1]?.y ?? nameY) + 40,
     payload.signature ? 590 : 630,
   );
-
-  // A frame leaves the middle empty, so it needs neither the wash nor a
-  // border of our own.
-  const framed = backgrounds.length > 0 && payload.background_wash === false;
 
   async function exportImage() {
     if (svgRef.current) {

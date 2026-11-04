@@ -172,6 +172,26 @@ describe("certificate frame and print", () => {
     }
   });
 
+  it("keeps a frame in light colours on a dark page", () => {
+    // A frame is light artwork: a dark glow would sit on it like a hole.
+    const style = document.createElement("style");
+    style.textContent =
+      ':root { --surface: #fffaf3; } :root[data-theme="dark"] { --surface: #14161b; }';
+    document.head.append(style);
+    document.documentElement.dataset.theme = "dark";
+    try {
+      const stops = [
+        ...view({ background_wash: false }).querySelectorAll("stop"),
+      ].map((stop) => stop.getAttribute("stop-color"));
+      expect(stops).toEqual(["#fffaf3", "#fffaf3", "#fffaf3"]);
+      // The page itself stays dark.
+      expect(document.documentElement.dataset.theme).toBe("dark");
+    } finally {
+      style.remove();
+      delete document.documentElement.dataset.theme;
+    }
+  });
+
   it("prints the certificate on its own page", async () => {
     const print = vi.fn();
     vi.stubGlobal("print", print);
